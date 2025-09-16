@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Acompanhamento</title>
+    <!-- Incluindo o Tailwind CSS para estilização rápida -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Incluindo Chart.js para o gráfico -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Plugin para mostrar os rótulos de dados no gráfico -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+        // Configurando a cor personalizada para o Tailwind
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-green': '#235937',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Estilos Globais */
+        html, body {
+            overflow: hidden; /* Impede a rolagem no nível do body */
+            font-family: 'Inter', sans-serif;
+        }
+
+        main {
+            position: relative;
+            margin-top: 7rem; /* Equivalente ao h-28 do header, criando espaço para ele */
+            height: calc(100vh - 7rem); /* Ocupa exatamente o espaço vertical restante */
+        }
+
+        .page-content {
+            position: absolute;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            left: 0;
+            padding: 0 2rem 1.5rem 2rem;
+            overflow-y: auto; /* Adicionado para permitir rolagem se o conteúdo for muito grande */
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        #page-relatorio.page-content {
+            overflow: hidden;
+        }
+
+        #sideMenu {
+            background-color: #235937;
+            top: 50%;
+            transform: translate(-100%, -50%);
+            transition: transform 0.3s ease-in-out;
+        }
+        #sideMenu.show {
+            transform: translate(0, -50%);
+        }
+        #sideMenu a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            transform: scale(1.1);
+        }
+        .line-clamp-2 {
+           overflow: hidden;
+           display: -webkit-box;
+           -webkit-box-orient: vertical;
+           -webkit-line-clamp: 2;
+        }
+        .filter-option-label {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border: 1px solid #d1d5db; /* gray-300 */
+            border-radius: 9999px;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            font-weight: 500;
+            user-select: none; /* prevent text selection */
+        }
+        .filter-option-input:checked + .filter-option-label {
+            background-color: #235937; /* brand-green */
+            color: white;
+            border-color: #235937;
+        }
+        .filter-option-input {
+            display: none;
+        }
+        .pedagogo-filter-btn {
+            background-color: #f3f4f6; /* gray-100 */
+            color: #4b5563; /* gray-600 */
+        }
+        .pedagogo-filter-btn.active, .pedagogo-filter-btn:hover {
+            background-color: #235937; /* brand-green */
+            color: white;
+        }
+    </style>
+</head>
+<body class="min-h-screen w-screen bg-gray-50 text-gray-800">
+
+    <!-- Cabeçalho -->
+    <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
+        <img src="https://i.imgur.com/ruDtZT7.png" alt="Logotipo" class="h-12 w-auto">
+        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <h1 id="main-title" class="text-2xl font-bold text-brand-green whitespace-nowrap">ACOMPANHAMENTO DE ENTREGAS</h1>
+        </div>
+        <div class="flex items-center space-x-4">
+             <div class="relative">
+                <select id="year-selector" class="w-32 bg-white border border-gray-200 text-gray-700 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow appearance-none text-center font-semibold">
+                    <!-- Options will be added by JS -->
+                </select>
+            </div>
+            <div class="relative">
+                <div class="relative">
+                    <span class="absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></span>
+                    <input type="text" id="search-input" placeholder="Buscar..." class="w-48 md:w-64 bg-white border border-gray-200 text-gray-700 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow" autocomplete="off">
+                </div>
+                <div id="search-suggestions" class="hidden absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl z-20 border border-gray-200 max-h-60 overflow-y-auto"></div>
+            </div>
+            <div class="relative">
+                <button id="notification-toggle" class="relative p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                    <span class="absolute top-2 right-2 block h-2 w-2 rounded-full bg-brand-green ring-1 ring-white"></span>
+                </button>
+                <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 border border-gray-200">
+                    <div class="p-3 font-bold text-gray-800 text-sm border-b">Notificações</div>
+                    <div class="py-1">
+                        <a href="#" class="flex items-start px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                            <svg class="w-8 h-8 mr-3 text-green-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+                            <div><p class="text-gray-600 text-xs">O curso de Marketing no Agro foi Entregue.</p><p class="text-xs text-gray-400 mt-1">há 5 minutos</p></div>
+                        </a>
+                        <a href="#" class="flex items-start px-4 py-3 text-sm text-gray-700 hover:bg-gray-100">
+                            <svg class="w-8 h-8 mr-3 text-blue-500 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0h18M-7.5 12h22.5" /></svg>
+                            <div><p class="text-gray-600 text-xs">Há 10 cursos previstos para serem entregues nesse mês.</p><p class="text-xs text-gray-400 mt-1">ontem</p></div>
+                        </a>
+                    </div>
+                    <div class="p-2 border-t text-center bg-gray-50 rounded-b-lg"><a href="#" class="text-sm text-brand-green font-semibold hover:underline">Ver todas</a></div>
+                </div>
+            </div>
+            <div class="relative">
+                <button id="menu-toggle" class="p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                </button>
+                <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-20 py-1 border border-gray-200">
+                    <a href="https://www.sistemafaep.org.br/cursos-busca/" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>CATÁLOGO</a>
+                    <a href="https://app.powerbi.com/view?r=eyJrIjoiMzIwZDk3OTctY2QxNC00ZGY5LThmNDItNWMzYjBiMzU1OGY5IiwidCI6IjNmY2UyOTIxLTI0ZTgtNDhhOC1hOTI2LWJiMzhlZjkzOTY0MiJ9" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m-6 3l6-3m0 0l6 3m-6-3v10" /></svg>MAPA PARA OFÍCIOS</a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Menu Lateral -->
+    <nav id="sideMenu" class="fixed left-0 w-16 text-white z-20 shadow-lg flex flex-col items-center justify-center space-y-6 p-4 rounded-r-3xl">
+        <a href="#" data-page="dashboard" class="page-link block p-3 rounded-xl transition-all duration-200" title="Início"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg></a>
+        <a href="#" data-page="relatorio" class="page-link block p-3 rounded-xl transition-all duration-200" title="Relatório"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></a>
+        <a href="#" data-page="pedagogo" class="page-link block p-3 rounded-xl transition-all duration-200" title="Pedagogo"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 8.48L5.53 8.32 12 5.21l6.47 3.11L12 11.48zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg></a>
+    </nav>
+    
+    <!-- Modal de Detalhes do Curso -->
+    <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg relative transform transition-all duration-300 scale-95 opacity-0 overflow-hidden" id="modal-content">
+            <div id="modal-header" class="p-6 flex justify-between items-center">
+                 <div class="flex items-center gap-4">
+                    <div id="modal-stage-indicator" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"></div>
+                    <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+                </div>
+                <button id="modal-close-btn" class="text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+            <div class="p-8">
+                <div class="space-y-5">
+                    <div class="border-b border-gray-200 pb-5">
+                        <div class="space-y-4 text-gray-700">
+                            <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Nível:</strong><span id="modal-level" class="font-semibold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-md text-sm"></span></div>
+                            <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Lançamento:</strong><span id="modal-date" class="text-gray-800 font-medium"></span></div>
+                        </div>
+                    </div>
+                    <div class="border-b border-gray-200 pb-5">
+                        <div class="flex items-start"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Responsáveis:</strong><div class="text-gray-800 font-medium leading-relaxed"><span id="modal-tech"></span> <span class="text-xs text-gray-500">(Técnico)</span><br><span id="modal-pedagogue"></span> <span class="text-xs text-gray-500">(Pedagogo)</span></div></div>
+                    </div>
+                    <div><div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Etapa Atual:</strong><span id="modal-stage" class="text-gray-800 font-medium"></span></div></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Conteúdo principal da página -->
+    <main class="w-full relative">
+        
+        <!-- PÁGINA DASHBOARD -->
+        <div id="page-dashboard" class="flex flex-col h-full gap-4 page-content">
+            
+            <div class="flex items-start space-x-6 flex-shrink-0">
+                <div class="bg-white rounded-2xl shadow p-4 w-48 h-24 flex-shrink-0 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                    <h3 class="text-xs font-semibold text-gray-600 text-center">META DE ENTREGAS</h3><p class="text-3xl font-bold text-brand-green mt-1">75</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                    <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (CURSOS NOVOS)</h3>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div class="bg-brand-green h-2.5 rounded-full" style="width: 60%"></div></div>
+                    <p class="text-right text-sm font-semibold text-gray-500 mt-1">60/100</p>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                    <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (ATUALIZAÇÃO)</h3>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div class="bg-brand-green h-2.5 rounded-full" style="width: 80%"></div></div>
+                    <p class="text-right text-sm font-semibold text-gray-500 mt-1">120/150</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-grow">
+                <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">ETAPA ATUAL DOS CURSOS</h3>
+                    <div class="relative flex-grow"><canvas id="barChart"></canvas></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PLANEJAMENTO DE ENTREGAS</h3>
+                    <div class="relative flex-grow"><canvas id="lineChart"></canvas></div>
+                </div>
+                <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">NÍVEL DOS CURSOS</h3>
+                    <div class="relative flex-grow flex items-center justify-center"><canvas id="donutChart"></canvas></div>
+                </div>
+                <div class="lg:col-span-3 bg-white rounded-2xl shadow p-6 flex flex-col">
+                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PRÓXIMOS LANÇAMENTOS</h3>
+                    <div id="carousel-container" class="relative group overflow-hidden rounded-lg flex-grow">
+                        <div id="slides-container" class="flex transition-transform duration-500 ease-in-out h-full"></div>
+                        <button id="prev-btn" class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                        <button id="next-btn" class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PÁGINA DE RELATÓRIOS -->
+        <div id="page-relatorio" class="flex flex-col h-full gap-4 page-content">
+            <!-- Cards Superiores -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 flex-shrink-0" id="report-cards">
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">TOTAL</h3><p id="card-total" class="text-3xl font-bold text-brand-green mt-1">180</p></div>
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">NOVOS</h3><p id="card-novos" class="text-3xl font-bold text-brand-green mt-1">60</p></div>
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ATUALIZAÇÕES</h3><p id="card-atualizacoes" class="text-3xl font-bold text-brand-green mt-1">120</p></div>
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ENTREGUES</h3><p id="card-entregues" class="text-3xl font-bold text-brand-green mt-1">75</p></div>
+                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">RESTANTES</h3><p id="card-restantes" class="text-3xl font-bold text-brand-green mt-1">105</p></div>
+            </div>
+
+            <!-- Tabela e Calendário -->
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-grow">
+                <div class="xl:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
+                    <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                         <h3 class="text-lg font-bold text-brand-green">ACOMPANHAMENTO DETALHADO</h3>
+                         <button id="filter-table-btn" class="text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
+                             <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                         </button>
+                    </div>
+                    <div class="overflow-y-auto">
+                        <table class="w-full text-sm text-left text-gray-600">
+                            <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0">
+                                <tr>
+                                    <th scope="col" class="px-4 py-3"></th>
+                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="name">Curso</th>
+                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="level">Nível</th>
+                                    <th scope="col" class="px-4 py-3">Tipo</th>
+                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="pedagogue">Pedagogo</th>
+                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="date">Disponível em</th>
+                                    <th scope="col" class="px-4 py-3">Etapa Atual</th>
+                                </tr>
+                            </thead>
+                            <tbody id="report-table-body">
+                                <!-- Linhas da tabela serão inseridas aqui via JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-4">
+                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green flex-grow">
+                        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                            <h3 class="text-lg font-bold text-brand-green">CALENDÁRIO</h3>
+                            <button id="expand-calendar-btn" class="text-sm font-semibold text-brand-green hover:underline">Expandir</button>
+                        </div>
+                        <div id="calendar-container" class="flex-grow">
+                            <!-- Calendário será inserido aqui via JS -->
+                        </div>
+                    </div>
+                     <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
+                         <div id="kpi-speedometer-container">
+                             <!-- KPI será inserido aqui via JS -->
+                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="page-pedagogo" class="page-content flex flex-col h-full gap-4">
+             <div class="flex justify-center gap-4 flex-shrink-0">
+                <button class="pedagogo-filter-btn px-4 py-2 rounded-full font-semibold transition" data-pedagogo="All">Todos</button>
+                <button class="pedagogo-filter-btn px-4 py-2 rounded-full font-semibold transition" data-pedagogo="Enderson Lopes">Enderson Lopes</button>
+                <button class="pedagogo-filter-btn px-4 py-2 rounded-full font-semibold transition" data-pedagogo="Josimeri Grein">Josimeri Grein</button>
+                <button class="pedagogo-filter-btn px-4 py-2 rounded-full font-semibold transition" data-pedagogo="Leandro Prado">Leandro Prado</button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow">
+                <!-- Left Column -->
+                <div class="md:col-span-1 flex flex-col gap-4">
+                    <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-lg font-bold text-brand-green mb-4 text-center">ACOMPANHAMENTOS</h3>
+                        <div class="space-y-4 text-center">
+                            <div>
+                                <p class="font-bold text-gray-800 text-lg">Formação</p>
+                                <p id="pedagogo-card-formacao" class="text-2xl font-bold text-gray-600">0</p>
+                            </div>
+                            <hr>
+                            <div>
+                                <p class="font-bold text-gray-800 text-lg">Piloto</p>
+                                <p id="pedagogo-card-piloto" class="text-2xl font-bold text-gray-600">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col flex-grow transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green overflow-hidden">
+                        <h3 class="text-lg font-bold text-brand-green mb-4 text-center">OUTRAS ATIVIDADES</h3>
+                        <div class="space-y-2 overflow-y-auto pr-2" id="pedagogo-outras-atividades">
+                             <!-- Content will be rendered by JS -->
+                        </div>
+                    </div>
+                </div>
+                <!-- Right Column (Calendar) -->
+                <div class="md:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
+                     <div id="pedagogo-calendar-container" class="flex flex-col h-full">
+                         <!-- Calendar will be rendered here by JS -->
+                     </div>
+                </div>
+            </div>
+        </div>
+        
+    </main>
+
+    <!-- Modal do Calendário Expandido -->
+    <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div id="calendar-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-6xl h-[90vh] relative transform transition-all duration-300 scale-95 opacity-0 flex flex-col p-6">
+            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                <div class="flex items-center space-x-4">
+                     <button id="expanded-calendar-prev-month" class="p-2 rounded-full hover:bg-gray-100">
+                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                     </button>
+                    <h2 id="expanded-calendar-title" class="text-2xl font-bold text-brand-green text-center w-48">Setembro 2025</h2>
+                     <button id="expanded-calendar-next-month" class="p-2 rounded-full hover:bg-gray-100">
+                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                     </button>
+                </div>
+                <button id="calendar-modal-close-btn" class="text-gray-500 hover:text-gray-800 transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0">
+                <div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div>
+            </div>
+            <div id="expanded-calendar-grid" class="grid grid-cols-7 grid-rows-5 flex-grow gap-1 overflow-y-auto pr-2">
+                <!-- Dias do calendário serão inseridos aqui -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Filtro da Tabela -->
+    <div id="filter-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+        <div id="filter-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-3xl relative transform transition-all duration-300 scale-95 opacity-0 p-6">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-xl font-bold text-brand-green">Filtrar Cursos</h2>
+                <button id="filter-modal-close-btn" class="text-gray-400 hover:text-gray-800">
+                     <svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                </button>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="font-semibold mb-3 text-gray-700">Etapa</h3>
+                    <div id="filter-stage-options"></div>
+                </div>
+                 <hr>
+                <div>
+                    <h3 class="font-semibold mb-3 text-gray-700">Técnico</h3>
+                    <div id="filter-tech-options"></div>
+                </div>
+                 <hr>
+                <div>
+                    <h3 class="font-semibold mb-3 text-gray-700">Pedagogo</h3>
+                    <div id="filter-pedagogue-options"></div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-4 mt-8">
+                <button id="filter-clear-btn" class="text-sm font-semibold text-gray-600 hover:underline">Limpar Filtros</button>
+                <button id="filter-apply-btn" class="bg-brand-green text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-colors">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // --- DADOS MOCKADOS ---
+            const fullCourseData = [
+                { name: 'Inteligência Artificial para Iniciantes', level: 'Básico', type: 'Novo', date: '25/09/2025', tech: 'Carlos Silva', pedagogue: 'Josimeri Grein', stage: 'Etapa 4: Gravação' },
+                { name: 'Desenvolvimento Web com React', level: 'Intermediário', type: 'Novo', date: '10/10/2025', tech: 'Bruna Costa', pedagogue: 'Leandro Prado', stage: 'Etapa 3: Roteirização' },
+                { name: 'Marketing Digital Avançado', level: 'Avançado', type: 'Atualização', date: '28/10/2025', tech: 'Lucas Souza', pedagogue: 'Mariana Lima', stage: 'Etapa 5: Edição' },
+                { name: 'Gestão de Projetos Ágeis', level: 'Intermediário', type: 'Novo', date: '15/11/2025', tech: 'Fernanda Oliveira', pedagogue: 'Enderson Lopes', stage: 'Etapa 2: Planejamento' },
+                { name: 'Finanças Pessoais e Investimentos', level: 'Básico', type: 'Atualização', date: '01/12/2025', tech: 'Gabriel Santos', pedagogue: 'Sofia Ferreira', stage: 'Etapa 1: Análise' },
+                { name: 'Ciência de Dados com Python', level: 'Avançado', type: 'Novo', date: '10/01/2026', tech: 'Amanda Rocha', pedagogue: 'Pedro Martins', stage: 'Etapa 6: Publicação' },
+                { name: 'Design de UI/UX para Mobile', level: 'Intermediário', type: 'Atualização', date: '25/01/2026', tech: 'Vinicius Gomes', pedagogue: 'Josimeri Grein', stage: 'Etapa 4: Gravação' },
+                { name: 'Fotografia para Redes Sociais', level: 'Básico', type: 'Novo', date: '08/02/2026', tech: 'Letícia Barros', pedagogue: 'Daniel Ribeiro', stage: 'Etapa 3: Roteirização' },
+                { name: 'Edição de Vídeo com DaVinci Resolve', level: 'Intermediário', type: 'Novo', date: '22/02/2026', tech: 'Rafael Azevedo', pedagogue: 'Carolina Dias', stage: 'Etapa 5: Edição' },
+                { name: 'Formação: Atualização Manejo Integrado da Soja', level: 'Único', type: 'Atualização', date: '02/10/2025', tech: 'José Almeida', pedagogue: 'Fátima Silva', stage: 'Etapa 6: Publicação' },
+                { name: 'Piloto: Curso novo | Marketing no agro - Intermediário', level: 'Intermediário', type: 'Novo', date: '03/10/2025', tech: 'Carlos Silva', pedagogue: 'Leandro Prado', stage: 'Etapa 5: Edição' },
+                { name: 'Piloto: Curso novo | Alimentos biscoitos e bolachas | Único', level: 'Único', type: 'Atualização', date: '10/10/2025', tech: 'Mariana Lima', pedagogue: 'Josimeri Grein', stage: 'Etapa 3: Roteirização' },
+            ];
+            
+            const outrasAtividadesData = [
+                { name: 'Correção de Cartilha', count: 10, pedagogue: 'Josimeri Grein' },
+                { name: 'Correção de Cartilha', count: 12, pedagogue: 'Leandro Prado' },
+                { name: 'Evento', count: 5, pedagogue: 'Enderson Lopes' },
+                { name: 'Evento', count: 6, pedagogue: 'Josimeri Grein' },
+                { name: 'Reunião', count: 8, pedagogue: 'Leandro Prado' },
+                { name: 'Formação Pedagógica', count: 3, pedagogue: 'Josimeri Grein' },
+                { name: 'Formação Técnica', count: 3, pedagogue: 'Enderson Lopes' },
+                { name: 'Outro', count: 30, pedagogue: 'Leandro Prado' },
+                { name: 'Outro', count: 29, pedagogue: 'Josimeri Grein' },
+            ];
+
+            const stagePercentageMap = { 'Análise': 5, 'Planejamento': 15, 'Roteirização': 40, 'Gravação': 60, 'Edição': 80, 'Publicação': 100 };
+ 
+            function getIndicatorColor(percentage) {
+                if (percentage <= 5) return { bg: 'bg-gray-400', hex: '#9ca3af', lightBg: 'bg-gray-300', textColor: 'text-gray-800' };
+                if (percentage <= 15) return { bg: 'bg-red-500', hex: '#ef4444', lightBg: 'bg-red-400' };
+                if (percentage <= 40) return { bg: 'bg-orange-400', hex: '#f97316', lightBg: 'bg-orange-400' };
+                if (percentage <= 70) return { bg: 'bg-blue-500', hex: '#3b82f6', lightBg: 'bg-blue-400' };
+                return { bg: 'bg-brand-green', hex: '#235937', lightBg: 'bg-green-600' };
+            }
+
+            const parseDate = (dateStr) => {
+                const [day, month, year] = dateStr.split('/');
+                return new Date(year, month - 1, day);
+            };
+
+            // --- SELEÇÃO DE ELEMENTOS DO DOM ---
+            const pageLinks = document.querySelectorAll('.page-link');
+            const mainTitleElement = document.getElementById('main-title');
+            
+            const pages = {
+                dashboard: document.getElementById('page-dashboard'),
+                relatorio: document.getElementById('page-relatorio'),
+                pedagogo: document.getElementById('page-pedagogo')
+            };
+            const pageTitles = {
+                dashboard: 'ACOMPANHAMENTO DE ENTREGAS',
+                relatorio: 'ACOMPANHAMENTO DE ENTREGAS',
+                pedagogo: 'ACOMPANHAMENTO DE ENTREGAS'
+            };
+
+            // --- LÓGICA DE NAVEGAÇÃO E UI GERAL ---
+            const pageChangeResetter = new EventTarget();
+
+            Object.values(pages).forEach(page => {
+                if (page) {
+                    page.style.opacity = '0';
+                    page.style.pointerEvents = 'none';
+                }
+            });
+
+            function showPage(pageId) {
+                Object.entries(pages).forEach(([id, pageEl]) => {
+                    if (pageEl) {
+                        pageEl.style.opacity = (id === pageId) ? '1' : '0';
+                        pageEl.style.pointerEvents = (id === pageId) ? 'auto' : 'none';
+                    }
+                });
+                if (pageTitles[pageId]) {
+                    mainTitleElement.textContent = pageTitles[pageId];
+                }
+            }
+
+            pageLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const pageId = link.dataset.page;
+                    
+                    showPage(pageId);
+                    
+                    setTimeout(() => pageChangeResetter.dispatchEvent(new Event('reset')), 0);
+
+                    document.getElementById('menu-dropdown').classList.add('hidden');
+                    document.getElementById('sideMenu').classList.remove('show');
+                });
+            });
+
+            const resultModal = document.getElementById('result-modal');
+            const modalContent = document.getElementById('modal-content');
+            
+            function openModal(course) {
+                const stageKey = course.stage.split(':')[1]?.trim() || 'Análise';
+                const percentage = stagePercentageMap[stageKey] || 0;
+                const colors = getIndicatorColor(percentage);
+
+                const indicatorEl = document.getElementById('modal-stage-indicator');
+                const modalHeader = document.getElementById('modal-header');
+
+                indicatorEl.className = 'w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm';
+                indicatorEl.classList.add(colors.lightBg, colors.textColor || 'text-white');
+                indicatorEl.textContent = `${percentage}%`;
+                
+                modalHeader.style.backgroundColor = colors.hex;
+
+                document.getElementById('modal-title').textContent = course.name;
+                document.getElementById('modal-level').textContent = course.level;
+                document.getElementById('modal-date').textContent = course.date;
+                document.getElementById('modal-tech').textContent = course.tech;
+                document.getElementById('modal-pedagogue').textContent = course.pedagogue;
+                document.getElementById('modal-stage').textContent = course.stage;
+                resultModal.classList.remove('hidden');
+                setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+            }
+            window.addEventListener('openCourseModal', e => openModal(e.detail));
+            
+            // --- INICIALIZAÇÃO DE COMPONENTES DE CADA PÁGINA ---
+            
+            function initializeDashboard() {
+                const searchInput = document.getElementById('search-input');
+                if (searchInput.dataset.initialized) return;
+                searchInput.dataset.initialized = true;
+
+                const sideMenu = document.getElementById('sideMenu');
+                const menuToggle = document.getElementById('menu-toggle');
+                const menuDropdown = document.getElementById('menu-dropdown');
+                const notificationToggle = document.getElementById('notification-toggle');
+                const notificationDropdown = document.getElementById('notification-dropdown');
+                const searchSuggestions = document.getElementById('search-suggestions');
+                const modalCloseBtn = document.getElementById('modal-close-btn');
+
+                document.addEventListener('mousemove', (e) => { if (e.clientX <= 20) sideMenu.classList.add('show'); });
+                sideMenu.addEventListener('mouseleave', () => sideMenu.classList.remove('show'));
+                menuToggle.addEventListener('click', (e) => { e.stopPropagation(); menuDropdown.classList.toggle('hidden'); notificationDropdown.classList.add('hidden'); });
+                notificationToggle.addEventListener('click', (e) => { e.stopPropagation(); notificationDropdown.classList.toggle('hidden'); menuDropdown.classList.add('hidden'); });
+                window.addEventListener('click', (e) => {
+                    if (menuToggle && !menuToggle.contains(e.target)) menuDropdown.classList.add('hidden');
+                    if (notificationToggle && !notificationToggle.contains(e.target)) notificationDropdown.classList.add('hidden');
+                    if (searchInput && !searchInput.contains(e.target)) searchSuggestions.classList.add('hidden');
+                });
+
+                function closeModal() {
+                    modalContent.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => resultModal.classList.add('hidden'), 300);
+                }
+                modalCloseBtn.addEventListener('click', closeModal);
+                resultModal.addEventListener('click', (e) => { if (e.target === resultModal) closeModal(); });
+
+                searchInput.addEventListener('input', (e) => {
+                    const searchTerm = e.target.value.toLowerCase().trim();
+                    searchSuggestions.classList.toggle('hidden', searchTerm.length === 0);
+                    if (searchTerm.length > 0) {
+                        const filtered = fullCourseData.filter(c => c.name.toLowerCase().includes(searchTerm));
+                        searchSuggestions.innerHTML = '';
+                        filtered.forEach(course => {
+                            const item = document.createElement('a');
+                            item.href = '#';
+                            item.className = 'block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100';
+                            item.textContent = course.name;
+                            item.onclick = (event) => {
+                                event.preventDefault();
+                                openModal(course);
+                                searchInput.value = '';
+                                searchSuggestions.classList.add('hidden');
+                            };
+                            searchSuggestions.appendChild(item);
+                        });
+                    }
+                });
+
+                const slidesContainer = document.getElementById('slides-container');
+                if (slidesContainer.innerHTML === '') { // Renderiza apenas uma vez
+                    const itemsPerView = 4;
+                    let currentIndex = 0;
+                    let slideInterval;
+                    slidesContainer.innerHTML = fullCourseData.map(item => `
+                        <div class="w-1/${itemsPerView} flex-shrink-0 p-2 h-full">
+                            <div class="bg-white shadow p-4 rounded-xl text-left h-full flex flex-col justify-between transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer border-b-4 border-transparent hover:border-brand-green"
+                                onclick='window.dispatchEvent(new CustomEvent("openCourseModal", { detail: ${JSON.stringify(item)} }))'>
+                                <div>
+                                    <p class="text-xs font-medium text-brand-green">${item.level}</p>
+                                    <h4 class="font-bold text-gray-800 text-base mt-1 line-clamp-2">${item.name}</h4>
+                                </div>
+                                <div class="flex items-center text-xs font-semibold text-gray-500 mt-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg>
+                                    <span>${item.date}</span>
+                                </div>
+                            </div>
+                        </div>`).join('');
+                    
+                    const showSlide = i => { slidesContainer.style.transform = `translateX(-${i * (100 / itemsPerView)}%)`; };
+                    const next = () => { currentIndex = (currentIndex >= fullCourseData.length - itemsPerView) ? 0 : currentIndex + 1; showSlide(currentIndex); };
+                    const prev = () => { currentIndex = (currentIndex <= 0) ? fullCourseData.length - itemsPerView : currentIndex - 1; showSlide(currentIndex); };
+                    const start = () => { stop(); slideInterval = setInterval(next, 5000); };
+                    const stop = () => clearInterval(slideInterval);
+                    document.getElementById('next-btn').onclick = () => { next(); start(); };
+                    document.getElementById('prev-btn').onclick = () => { prev(); start(); };
+                    slidesContainer.onmouseenter = stop;
+                    slidesContainer.onmouseleave = start;
+                    start();
+                }
+                
+                Chart.register(ChartDataLabels);
+                if (!Chart.getChart('barChart')) new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: ['Etapa 1', 'Etapa 2', 'Etapa 3', 'Etapa 4', 'Etapa 5', 'Etapa 6'], datasets: [{ data: [65, 59, 80, 81, 56, 55], backgroundColor: 'rgba(35, 89, 55, 0.7)', borderColor: '#235937', borderWidth: 1, borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'top', color: '#374151', font: { weight: 'bold' } } } } });
+                if (!Chart.getChart('lineChart')) new Chart(document.getElementById('lineChart').getContext('2d'), { type: 'line', data: { labels: ['1° Trimestre', '2° Trimestre', '3° Trimestre', '4° Trimestre'], datasets: [{ data: [45, 62, 78, 90], fill: true, backgroundColor: 'rgba(35, 89, 55, 0.7)', borderColor: '#235937', tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, layout: { padding: { right: 30 } }, scales: { x: { grid: { display: false } }, y: { beginAtZero: true } }, plugins: { legend: { display: false }, datalabels: { anchor: 'end', align: 'top', color: '#374151', font: { weight: 'bold' }, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 4 } } } });
+                if (!Chart.getChart('donutChart')) new Chart(document.getElementById('donutChart').getContext('2d'), { type: 'doughnut', data: { labels: ['Básico', 'Intermediário', 'Avançado', 'Único'], datasets: [{ data: [35, 40, 20, 5], backgroundColor: ['#235937', '#2e7548', '#3a905a', '#46ac6b'], borderColor: '#ffffff', borderWidth: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }, datalabels: { formatter: (v, ctx) => (v * 100 / ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0)).toFixed(0) + "%", color: '#fff', font: { weight: 'bold' } } } } });
+            }
+
+            function initializeReportPage() {
+                const tableBody = document.getElementById('report-table-body');
+                if (!tableBody || tableBody.dataset.initialized) return;
+                tableBody.dataset.initialized = true;
+
+                let currentSort = { column: null, direction: 'asc' };
+                let activeFilters = { stage: [], tech: [], pedagogue: [] };
+                let currentData = [...fullCourseData];
+
+                const renderTableBody = (data) => {
+                     tableBody.innerHTML = data.map((course) => {
+                        const stageKey = course.stage.split(':')[1]?.trim() || 'Análise';
+                        const percentage = stagePercentageMap[stageKey] || 0;
+                        const { bg: indicatorColor } = getIndicatorColor(percentage);
+                        
+                        return `<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick='window.dispatchEvent(new CustomEvent("openCourseModal", { detail: ${JSON.stringify(course)} }))'>
+                                <td class="px-4 py-3"><span class="h-2.5 w-2.5 ${indicatorColor} rounded-full inline-block"></span></td>
+                                <th scope="row" class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">${course.name}</th>
+                                <td class="px-4 py-3">${course.level}</td>
+                                <td class="px-4 py-3">${course.type}</td>
+                                <td class="px-4 py-3">${course.pedagogue}</td>
+                                <td class="px-4 py-3">${course.date}</td>
+                                <td class="px-4 py-3">${course.stage}</td>
+                            </tr>`;
+                    }).join('');
+                }
+
+                const sortData = (column) => {
+                    const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
+                    currentSort = { column, direction };
+
+                    const sortedData = [...currentData].sort((a, b) => {
+                        let valA, valB;
+
+                        if (column === 'date') {
+                            valA = parseDate(a.date);
+                            valB = parseDate(b.date);
+                        } else {
+                            valA = a[column].toLowerCase();
+                            valB = b[column].toLowerCase();
+                        }
+                        
+                        if (valA < valB) return direction === 'asc' ? -1 : 1;
+                        if (valA > valB) return direction === 'asc' ? 1 : -1;
+                        return 0;
+                    });
+                    
+                    currentData = sortedData;
+                    renderTableBody(currentData);
+                    updateSortIcons();
+                };
+
+                const updateSortIcons = () => {
+                    document.querySelectorAll('.sortable-header').forEach(header => {
+                        const sortKey = header.dataset.sort;
+                        const existingIcon = header.querySelector('svg');
+                        if (existingIcon) existingIcon.remove();
+
+                        if (sortKey === currentSort.column) {
+                             const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                             icon.setAttribute('class', 'w-4 h-4 inline-block ml-1');
+                             icon.setAttribute('fill', 'none');
+                             icon.setAttribute('viewBox', '0 0 24 24');
+                             icon.setAttribute('stroke', 'currentColor');
+                             icon.innerHTML = currentSort.direction === 'asc' 
+                                 ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' 
+                                 : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+                             header.appendChild(icon);
+                        }
+                    });
+                };
+                
+                document.querySelectorAll('.sortable-header').forEach(header => {
+                    header.classList.add('cursor-pointer');
+                    header.addEventListener('click', () => sortData(header.dataset.sort));
+                });
+                
+                const filterBtn = document.getElementById('filter-table-btn');
+                const filterModal = document.getElementById('filter-modal');
+                const filterModalContent = document.getElementById('filter-modal-content');
+                const filterModalCloseBtn = document.getElementById('filter-modal-close-btn');
+                const filterApplyBtn = document.getElementById('filter-apply-btn');
+                const filterClearBtn = document.getElementById('filter-clear-btn');
+                const filterStageOptions = document.getElementById('filter-stage-options');
+                const filterTechOptions = document.getElementById('filter-tech-options');
+                const filterPedagogueOptions = document.getElementById('filter-pedagogue-options');
+
+                function openFilterModal() {
+                    filterModal.classList.remove('hidden');
+                    setTimeout(() => filterModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                }
+
+                function closeFilterModal() {
+                    filterModalContent.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => filterModal.classList.add('hidden'), 300);
+                }
+
+                function populateFilters() {
+                    const uniqueStages = [...new Set(fullCourseData.map(c => c.stage))];
+                    const uniqueTechs = [...new Set(fullCourseData.map(c => c.tech))];
+                    const uniquePedagogues = [...new Set(fullCourseData.map(c => c.pedagogue))];
+
+                    const createCheckbox = (value, group, index) => {
+                        const id = `filter-${group}-${index}`;
+                        return `
+                            <div>
+                                <input type="checkbox" data-group="${group}" value="${value}" id="${id}" class="filter-option-input">
+                                <label for="${id}" class="filter-option-label">${value}</label>
+                            </div>`;
+                    };
+
+                    filterStageOptions.className = 'flex flex-wrap gap-2 text-sm';
+                    filterTechOptions.className = 'flex flex-wrap gap-2 max-h-32 overflow-y-auto text-sm pr-2';
+                    filterPedagogueOptions.className = 'flex flex-wrap gap-2 max-h-32 overflow-y-auto text-sm pr-2';
+
+                    filterStageOptions.innerHTML = uniqueStages.map((v, i) => createCheckbox(v, 'stage', i)).join('');
+                    filterTechOptions.innerHTML = uniqueTechs.map((v, i) => createCheckbox(v, 'tech', i)).join('');
+                    filterPedagogueOptions.innerHTML = uniquePedagogues.map((v, i) => createCheckbox(v, 'pedagogue', i)).join('');
+                }
+                
+                const updateReportCards = (data) => {
+                    document.getElementById('card-total').textContent = data.length;
+                    document.getElementById('card-novos').textContent = data.filter(c => c.type === 'Novo').length;
+                    document.getElementById('card-atualizacoes').textContent = data.filter(c => c.type === 'Atualização').length;
+                    const entregues = data.filter(c => c.stage === 'Etapa 6: Publicação').length;
+                    document.getElementById('card-entregues').textContent = entregues;
+                    document.getElementById('card-restantes').textContent = data.length - entregues;
+                };
+
+                function applyFilters() {
+                    activeFilters.stage = [...filterStageOptions.querySelectorAll('input:checked')].map(el => el.value);
+                    activeFilters.tech = [...filterTechOptions.querySelectorAll('input:checked')].map(el => el.value);
+                    activeFilters.pedagogue = [...filterPedagogueOptions.querySelectorAll('input:checked')].map(el => el.value);
+
+                    let filteredData = [...fullCourseData];
+
+                    if (activeFilters.stage.length > 0) {
+                        filteredData = filteredData.filter(c => activeFilters.stage.includes(c.stage));
+                    }
+                    if (activeFilters.tech.length > 0) {
+                        filteredData = filteredData.filter(c => activeFilters.tech.includes(c.tech));
+                    }
+                    if (activeFilters.pedagogue.length > 0) {
+                        filteredData = filteredData.filter(c => activeFilters.pedagogue.includes(c.pedagogue));
+                    }
+                    
+                    const hasActiveFilters = activeFilters.stage.length > 0 || activeFilters.tech.length > 0 || activeFilters.pedagogue.length > 0;
+                    filterBtn.classList.toggle('text-brand-green', hasActiveFilters);
+                    filterBtn.classList.toggle('text-gray-500', !hasActiveFilters);
+                    
+                    currentData = filteredData;
+                    currentSort = { column: null, direction: 'asc' };
+                    updateSortIcons();
+                    renderTableBody(currentData);
+                    updateReportCards(currentData);
+                    renderSpeedometer(currentData);
+                    renderSmallCalendar(currentData);
+                }
+
+                function clearFilters() {
+                    filterModal.querySelectorAll('input:checked').forEach(el => el.checked = false);
+                    applyFilters();
+                }
+
+                filterBtn.addEventListener('click', openFilterModal);
+                filterModalCloseBtn.addEventListener('click', closeFilterModal);
+                filterApplyBtn.addEventListener('click', () => {
+                    applyFilters();
+                    closeFilterModal();
+                });
+                filterClearBtn.addEventListener('click', () => {
+                    clearFilters();
+                    closeFilterModal();
+                });
+
+                pageChangeResetter.addEventListener('reset', clearFilters);
+
+                populateFilters();
+                
+                // --- Lógica do Calendário Pequeno e Modal ---
+                const calendarContainer = document.getElementById('calendar-container');
+                const calendarModal = document.getElementById('calendar-modal');
+                const calendarModalContent = document.getElementById('calendar-modal-content');
+                const calendarModalCloseBtn = document.getElementById('calendar-modal-close-btn');
+                const expandCalendarBtn = document.getElementById('expand-calendar-btn');
+                let smallCalendarDate = new Date('2025-09-01T12:00:00');
+                let expandedCalendarDate = new Date('2025-09-01T12:00:00');
+
+                const showCalendarTooltip = (target, events) => {
+                    let tooltip = document.getElementById('calendar-tooltip');
+                    if (!tooltip) {
+                        tooltip = document.createElement('div');
+                        tooltip.id = 'calendar-tooltip';
+                        tooltip.className = 'absolute hidden w-48 bg-white rounded-lg shadow-lg p-3 text-left text-xs z-40';
+                        document.body.appendChild(tooltip);
+                        document.addEventListener('click', () => tooltip.classList.add('hidden'), true);
+                    }
+                    tooltip.innerHTML = `<p class="font-bold mb-1">Entregas do dia:</p><ul class="list-disc list-inside">${events.map(e => `<li>${e}</li>`).join('')}</ul>`;
+                    const rect = target.getBoundingClientRect();
+                    tooltip.style.left = `${rect.left + window.scrollX}px`;
+                    tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+                    tooltip.classList.remove('hidden');
+                };
+
+                const renderSmallCalendar = (data) => {
+                    const month = smallCalendarDate.getMonth(), year = smallCalendarDate.getFullYear();
+                    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                    const eventsMap = new Map();
+                    data.forEach(c => {
+                        if (!eventsMap.has(c.date)) eventsMap.set(c.date, []);
+                        eventsMap.get(c.date).push(c);
+                    });
+                    
+                    const firstDay = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const currentDate = new Date();
+                    
+                    let daysHtml = Array.from({ length: firstDay }, () => '<div></div>').join('');
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const dateStr = `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year}`;
+                        const todaysEvents = eventsMap.get(dateStr) || [];
+                        
+                        let dayContent = day;
+                        let cellClasses = 'relative h-8 flex items-center justify-center flex-col';
+                        if (todaysEvents.length > 0) cellClasses += ' cursor-pointer';
+
+                        if (day === currentDate.getDate() && month === currentDate.getMonth() && year === currentDate.getFullYear()) {
+                            dayContent = `<span class="bg-brand-green text-white rounded-full w-6 h-6 flex items-center justify-center">${day}</span>`;
+                        } else {
+                            dayContent = `<span class="w-6 h-6 flex items-center justify-center">${day}</span>`;
+                        }
+                        
+                        daysHtml += `<div class="${cellClasses}" data-date-key="${dateStr}">
+                                        ${dayContent}
+                                        ${todaysEvents.length > 0 ? '<span class="absolute bottom-0 h-1.5 w-1.5 bg-brand-green rounded-full"></span>' : ''}
+                                    </div>`;
+                    }
+
+                    calendarContainer.innerHTML = `
+                        <div class="flex flex-col h-full">
+                            <div class="flex justify-between items-center mb-2 flex-shrink-0">
+                                <button id="sm-prev-month" class="p-1 rounded-full hover:bg-gray-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                                <h4 class="font-bold text-gray-800">${monthNames[month]} ${year}</h4>
+                                <button id="sm-next-month" class="p-1 rounded-full hover:bg-gray-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                            </div>
+                            <div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500 flex-shrink-0">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => `<div>${d}</div>`).join('')}</div>
+                            <div class="grid grid-cols-7 grid-rows-6 gap-1 mt-1 flex-grow">${daysHtml}</div>
+                        </div>`;
+
+                    document.getElementById('sm-prev-month').onclick = () => { smallCalendarDate.setMonth(smallCalendarDate.getMonth() - 1); renderSmallCalendar(currentData); };
+                    document.getElementById('sm-next-month').onclick = () => { smallCalendarDate.setMonth(smallCalendarDate.getMonth() + 1); renderSmallCalendar(currentData); };
+                    
+                    calendarContainer.querySelectorAll('[data-date-key]').forEach(el => {
+                        const todaysEvents = eventsMap.get(el.dataset.dateKey) || [];
+                        if (todaysEvents.length > 0) {
+                            el.onclick = (e) => {
+                                e.stopPropagation();
+                                showCalendarTooltip(el, todaysEvents.map(evt => evt.name));
+                            };
+                        }
+                    });
+                };
+
+                const renderExpandedCalendar = () => {
+                    const month = expandedCalendarDate.getMonth(), year = expandedCalendarDate.getFullYear();
+                    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                    const levelColorMap = { 'Básico': 'bg-pink-300 text-pink-800', 'Intermediário': 'bg-blue-300 text-blue-800', 'Avançado': 'bg-orange-300 text-orange-800', 'Único': 'bg-green-300 text-green-800' };
+
+                    document.getElementById('expanded-calendar-title').textContent = `${monthNames[month]} ${year}`;
+                    const grid = document.getElementById('expanded-calendar-grid');
+                    grid.innerHTML = '';
+
+                    const firstDay = new Date(year, month, 1);
+                    const lastDay = new Date(year, month + 1, 0);
+
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                    for (let d = new Date(startDate); d <= lastDay || d.getDay() !== 0; d.setDate(d.getDate() + 1)) {
+                        const cell = document.createElement('div');
+                        cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs';
+                        if (d.getMonth() !== month) {
+                           cell.classList.add('bg-gray-50');
+                        }
+                        const dayNumber = document.createElement('span');
+                        dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-center';
+                        dayNumber.textContent = d.getDate();
+
+                        const currentDate = new Date();
+                        if (d.toDateString() === currentDate.toDateString()) {
+                            dayNumber.classList.add('bg-brand-green', 'text-white', 'rounded-full');
+                        }
+
+                        cell.appendChild(dayNumber);
+                        
+                        const todaysEvents = fullCourseData.filter(course => parseDate(course.date).toDateString() === d.toDateString());
+                        todaysEvents.forEach(event => {
+                           const eventDiv = document.createElement('div');
+                           const colorClass = levelColorMap[event.level] || 'bg-gray-300 text-gray-800';
+                           eventDiv.className = `p-1 rounded-md text-[10px] leading-tight font-semibold truncate ${colorClass} cursor-pointer hover:opacity-80`;
+                           eventDiv.textContent = event.name;
+                           eventDiv.onclick = () => window.dispatchEvent(new CustomEvent("openCourseModal", { detail: event }));
+                           cell.appendChild(eventDiv);
+                        });
+                        
+                        grid.appendChild(cell);
+                        if (d.getDay() === 6 && d > lastDay) break;
+                    }
+                };
+
+                const openCalendarModal = () => {
+                    expandedCalendarDate = new Date(smallCalendarDate);
+                    renderExpandedCalendar();
+                    calendarModal.classList.remove('hidden');
+                    setTimeout(() => calendarModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                };
+
+                const closeCalendarModal = () => {
+                    calendarModalContent.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => calendarModal.classList.add('hidden'), 300);
+                };
+
+                expandCalendarBtn.addEventListener('click', openCalendarModal);
+                calendarModalCloseBtn.addEventListener('click', closeCalendarModal);
+                calendarModal.addEventListener('click', (e) => { if (e.target === calendarModal) closeCalendarModal(); });
+                document.getElementById('expanded-calendar-prev-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() - 1); renderExpandedCalendar(); };
+                document.getElementById('expanded-calendar-next-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() + 1); renderExpandedCalendar(); };
+
+                const renderSpeedometer = (data) => {
+                    const container = document.getElementById('kpi-speedometer-container');
+                    if (!container) return;
+                    
+                    const totalCourses = data.length;
+                    let kpiValue = 0;
+                    if (totalCourses > 0) {
+                        const deliveredCourses = data.filter(c => c.stage === 'Etapa 6: Publicação').length;
+                        kpiValue = Math.round((deliveredCourses / totalCourses) * 100);
+                    }
+
+                    const { hex: arcColor } = getIndicatorColor(kpiValue);
+                    const arcLength = 125.6;
+                    const initialOffset = arcLength;
+                    const finalOffset = arcLength * (1 - (kpiValue / 100));
+
+                    container.innerHTML = `
+                        <h3 class="text-lg font-bold text-brand-green mb-1">INDICADOR</h3>
+                        <div class="relative w-56 h-28 mx-auto">
+                            <svg class="w-full h-full absolute top-0 left-0" viewBox="0 0 100 50">
+                                <path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e5e7eb" stroke-width="12" stroke-linecap="round"></path>
+                                <path id="kpi-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="${arcColor}" stroke-width="12" stroke-linecap="round"
+                                    style="stroke-dasharray: ${arcLength}; stroke-dashoffset: ${initialOffset}; transition: stroke-dashoffset 1s ease-out;"></path>
+                            </svg>
+                            <div class="absolute bottom-1 left-1/2 -translate-x-1/2 text-center">
+                                <span class="text-4xl font-bold text-gray-800">${kpiValue}%</span>
+                            </div>
+                        </div>`;
+                    
+                    setTimeout(() => {
+                        const animatedArc = container.querySelector('#kpi-arc');
+                        if(animatedArc) animatedArc.style.strokeDashoffset = finalOffset;
+                    }, 100);
+                };
+
+                // Chamadas iniciais
+                renderTableBody(fullCourseData);
+                updateReportCards(fullCourseData);
+                renderSmallCalendar(fullCourseData);
+                renderSpeedometer(fullCourseData);
+            }
+
+            function initializePedagogoPage() {
+                const container = document.getElementById('pedagogo-calendar-container');
+                if(!container || container.dataset.initialized) return;
+                container.dataset.initialized = true;
+
+                let pedagogoCalendarDate = new Date();
+                let activePedagogoFilter = 'All';
+                
+                const filterButtons = document.querySelectorAll('.pedagogo-filter-btn');
+
+                const updateOutrasAtividades = (pedagogoName, data) => {
+                    const container = document.getElementById('pedagogo-outras-atividades');
+                    if (!container) return;
+
+                    const activities = {};
+                    const dataToFilter = pedagogoName === 'All'
+                        ? outrasAtividadesData
+                        : outrasAtividadesData.filter(a => a.pedagogue === pedagogoName);
+
+                    dataToFilter.forEach(activity => {
+                        if (!activities[activity.name]) {
+                            activities[activity.name] = 0;
+                        }
+                        activities[activity.name] += activity.count;
+                    });
+                    
+                    const activityOrder = ['Correção de Cartilha', 'Evento', 'Reunião', 'Formação Pedagógica', 'Formação Técnica', 'Outro'];
+                    const sortedActivities = Object.entries(activities).sort((a, b) => {
+                        return activityOrder.indexOf(a[0]) - activityOrder.indexOf(b[0]);
+                    });
+
+                    container.innerHTML = ''; 
+
+                    if (sortedActivities.length === 0) {
+                        container.innerHTML = '<p class="text-center text-gray-500 mt-4">Nenhuma atividade encontrada.</p>';
+                        return;
+                    }
+
+                    container.innerHTML = sortedActivities.map(([name, count]) => `
+                        <div class="flex justify-between items-baseline">
+                            <p class="font-bold text-gray-800">${name}</p>
+                            <p class="text-xl font-bold text-gray-600">${count}</p>
+                        </div>
+                    `).join('<hr class="my-2">');
+                };
+
+                const updatePedagogoCards = (data) => {
+                    document.getElementById('pedagogo-card-formacao').textContent = data.filter(c => c.name.toLowerCase().includes('formação')).length;
+                    document.getElementById('pedagogo-card-piloto').textContent = data.filter(c => c.name.toLowerCase().includes('piloto')).length;
+                };
+
+
+                filterButtons.forEach(button => {
+                    button.addEventListener('click', () => {
+                        activePedagogoFilter = button.dataset.pedagogo;
+                        filterButtons.forEach(btn => btn.classList.remove('active'));
+                        button.classList.add('active');
+                        renderPedagogoPageContent();
+                    });
+                });
+                
+                const renderPedagogoPageContent = () => {
+                    let yearFilteredData = getYearFilteredData();
+                    let pedagogoFilteredData = [...yearFilteredData];
+
+                    if (activePedagogoFilter !== 'All') {
+                        pedagogoFilteredData = pedagogoFilteredData.filter(c => c.pedagogue === activePedagogoFilter);
+                    }
+                    updatePedagogoCards(pedagogoFilteredData);
+                    updateOutrasAtividades(activePedagogoFilter, pedagogoFilteredData);
+                    renderPedagogoCalendar(pedagogoFilteredData);
+                };
+                
+                pageChangeResetter.addEventListener('reset', () => {
+                    activePedagogoFilter = 'All';
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+                    const allButton = document.querySelector('.pedagogo-filter-btn[data-pedagogo="All"]');
+                    if (allButton) allButton.classList.add('active');
+                    pedagogoCalendarDate = new Date(); // Reset calendar to current month
+                    renderPedagogoPageContent();
+                });
+
+                const renderPedagogoCalendar = (calendarData) => {
+                    const month = pedagogoCalendarDate.getMonth(), year = pedagogoCalendarDate.getFullYear();
+                    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                    const levelColorMap = { 'Básico': 'bg-pink-300 text-pink-800', 'Intermediário': 'bg-blue-300 text-blue-800', 'Avançado': 'bg-orange-300 text-orange-800', 'Único': 'bg-green-300 text-green-800' };
+
+                    container.innerHTML = `
+                        <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                            <div class="flex items-center space-x-4">
+                                <button id="pedagogo-calendar-prev-month" class="p-2 rounded-full hover:bg-gray-100">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                                </button>
+                                <h2 id="pedagogo-calendar-title" class="text-2xl font-bold text-brand-green text-center w-48">${monthNames[month]} ${year}</h2>
+                                <button id="pedagogo-calendar-next-month" class="p-2 rounded-full hover:bg-gray-100">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0">
+                            <div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div>
+                        </div>
+                        <div id="pedagogo-calendar-grid" class="grid grid-cols-7 grid-rows-6 flex-grow gap-1 overflow-y-auto pr-2"></div>
+                    `;
+
+                    document.getElementById('pedagogo-calendar-prev-month').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() - 1); renderPedagogoPageContent(); };
+                    document.getElementById('pedagogo-calendar-next-month').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() + 1); renderPedagogoPageContent(); };
+                    
+                    const grid = document.getElementById('pedagogo-calendar-grid');
+                    const currentDate = new Date();
+                    const firstDay = new Date(year, month, 1);
+                    const lastDay = new Date(year, month + 1, 0);
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+                    for (let d = new Date(startDate); d <= lastDay || d.getDay() !== 0; d.setDate(d.getDate() + 1)) {
+                        const cell = document.createElement('div');
+                        cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs';
+                        if (d.getMonth() !== month) cell.classList.add('bg-gray-50');
+                        
+                        const dayNumber = document.createElement('span');
+                        dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-center';
+                        dayNumber.textContent = d.getDate();
+
+                        if (d.toDateString() === currentDate.toDateString()) {
+                            dayNumber.classList.add('bg-brand-green', 'text-white', 'rounded-full');
+                        }
+                        
+                        cell.appendChild(dayNumber);
+                        
+                        const todaysEvents = calendarData.filter(course => parseDate(course.date).toDateString() === d.toDateString());
+                        todaysEvents.forEach(event => {
+                           const eventDiv = document.createElement('div');
+                           const colorClass = levelColorMap[event.level] || 'bg-gray-300 text-gray-800';
+                           eventDiv.className = `p-1 rounded-md text-[10px] leading-tight font-semibold truncate ${colorClass} cursor-pointer hover:opacity-80`;
+                           eventDiv.textContent = event.name;
+                           eventDiv.onclick = () => window.dispatchEvent(new CustomEvent("openCourseModal", { detail: event }));
+                           cell.appendChild(eventDiv);
+                        });
+                        
+                        grid.appendChild(cell);
+                        if (d.getDay() === 6 && d > lastDay) break;
+                    }
+                };
+                
+                document.querySelector('.pedagogo-filter-btn[data-pedagogo="All"]').classList.add('active');
+                renderPedagogoPageContent();
+            }
+
+
+            // --- INICIALIZAÇÃO DA APLICAÇÃO ---
+
+            let selectedYear = 'All';
+            const yearSelector = document.getElementById('year-selector');
+
+            const getYearFilteredData = () => {
+                if (selectedYear === 'All') return [...fullCourseData];
+                return fullCourseData.filter(c => parseDate(c.date).getFullYear() == selectedYear);
+            };
+
+            const populateYearSelector = () => {
+                const years = [...new Set(fullCourseData.map(c => parseDate(c.date).getFullYear()))].sort();
+                yearSelector.innerHTML = '<option value="All">Todos</option>';
+                years.forEach(year => {
+                    yearSelector.innerHTML += `<option value="${year}">${year}</option>`;
+                });
+            };
+            
+            // Reúne todas as funções de atualização para serem chamadas pelo seletor de ano
+            const updateAllPages = () => {
+                // Dashboard (esta página não tem uma função de atualização separada, pois seus dados são estáticos ou atualizados na inicialização)
+                // Se precisasse de atualização, a lógica estaria aqui.
+
+                // Relatório
+                const reportUpdater = window.updateReportPage;
+                if(reportUpdater) reportUpdater();
+
+                // Pedagogo
+                const pedagogoUpdater = window.updatePedagogoPage;
+                if(pedagogoUpdater) pedagogoUpdater();
+            };
+
+
+            populateYearSelector();
+            
+            yearSelector.addEventListener('change', (e) => {
+                selectedYear = e.target.value;
+                
+                // Dispara a atualização em todas as páginas relevantes
+                window.dispatchEvent(new CustomEvent('yearChanged'));
+            });
+
+
+            initializeDashboard();
+            initializeReportPage();
+            initializePedagogoPage();
+            showPage('dashboard');
+
+            // Expondo funções de atualização para o escopo global para que o seletor de ano possa chamá-las
+             window.updateReportPage = () => {
+                const reportPage = pages.relatorio;
+                if (!reportPage) return;
+                const clearFiltersFunc = reportPage.clearFilters;
+                if (clearFiltersFunc) clearFiltersFunc(true); // true para indicar que é uma atualização de ano
+            };
+
+            window.updatePedagogoPage = () => {
+                const pedagogoPage = pages.pedagogo;
+                if (!pedagogoPage) return;
+                const renderFunc = pedagogoPage.renderContent;
+                if(renderFunc) renderFunc();
+            };
+
+             window.addEventListener('yearChanged', () => {
+                updateReportPage();
+                updatePedagogoPage();
+             });
+
+
+        });
+    </script>
+
+</body>
+</html>
