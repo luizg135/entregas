@@ -420,14 +420,12 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Este script agora carrega dados de um 'data.json' e depois inicializa a aplicação.
-            // Certifique-se de que o arquivo 'data.json' está na mesma pasta que este HTML.
-
+            
             // --- ESTADO GLOBAL DA APLICAÇÃO ---
             let masterCourseData = [];
             let masterActivityData = [];
             let masterCalendarEvents = [];
-            let selectedYear = new Date().getFullYear().toString(); // Default to current year
+            let selectedYear = new Date().getFullYear().toString();
 
             // --- FUNÇÕES DE TRANSFORMAÇÃO DE DADOS ---
             const parseDate = (dateStr) => {
@@ -435,7 +433,6 @@
                 const parts = dateStr.split('/');
                 if (parts.length !== 3) return null;
                 const [day, month, year] = parts.map(Number);
-                // Valida se a data é um número válido
                 if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
                 return new Date(year, month - 1, day);
             };
@@ -456,21 +453,19 @@
 
             function transformData(rawData) {
                 const courses = [];
-                const activities = [];
                 const calendarEvents = [];
-
+                if (!Array.isArray(rawData)) {
+                    console.error("Os dados fornecidos não são um array. Verifique o JSON.");
+                    return { courses: [], activities: [], calendarEvents: [] };
+                }
                 rawData.forEach(item => {
                     const fileName = item.filename || '';
                     const isTecnicoFile = (item['Qtde de abas'] === 3);
-                    const isPedagogoFile = (item['Qtde de abas'] === 1);
-
                     if (isTecnicoFile) {
                         const techNameMatch = fileName.match(/Técnico - (.*?)-/);
                         const techName = techNameMatch ? techNameMatch[1].trim() : 'N/A';
-                        
                         const deliveryDateStr = item['Disponível em:'] || '';
                         const deliveryDate = parseDate(deliveryDateStr);
-
                         courses.push({
                             name: item['Nome do Curso'] || 'Curso sem nome',
                             level: item['Nível'] || 'N/A',
@@ -479,115 +474,66 @@
                             tech: techName,
                             pedagogue: pedagogueNameMap[item['Pedagogo']] || item['Pedagogo'] || 'N/A',
                             stage: item['Etapa Atual'] || 'N/A',
-                            // Guardando a data original para cálculos
                             _deliveryDate: deliveryDate 
                         });
-                        
-                        // Gerar eventos de calendário para piloto e formação
                         const pilotoStart = parseDate(item['Início piloto']);
                         const pilotoEnd = parseDate(item['Fim piloto']);
                         const formacaoStart = parseDate(item['Início formação']);
                         const formacaoEnd = parseDate(item['Fim formação']);
-
                         if (pilotoStart && pilotoEnd) {
                             for (let d = new Date(pilotoStart); d <= pilotoEnd; d.setDate(d.getDate() + 1)) {
-                                calendarEvents.push({
-                                    date: new Date(d),
-                                    courseName: item['Nome do Curso'],
-                                    type: 'Piloto',
-                                    level: item['Nível']
-                                });
+                                calendarEvents.push({ date: new Date(d), courseName: item['Nome do Curso'], type: 'Piloto', level: item['Nível'] });
                             }
                         }
                         if (formacaoStart && formacaoEnd) {
                              for (let d = new Date(formacaoStart); d <= formacaoEnd; d.setDate(d.getDate() + 1)) {
-                                calendarEvents.push({
-                                    date: new Date(d),
-                                    courseName: item['Nome do Curso'],
-                                    type: 'Formação',
-                                    level: item['Nível']
-                                });
+                                calendarEvents.push({ date: new Date(d), courseName: item['Nome do Curso'], type: 'Formação', level: item['Nível'] });
                             }
                         }
-
-                    } else if (isPedagogoFile) {
-                        // Lógica para extrair atividades dos pedagogos, se necessário.
-                        // O JSON de exemplo não continha a estrutura para isso, então está como placeholder.
                     }
                 });
-                
-                // Exemplo de como as atividades poderiam ser processadas, se viessem do JSON
-                // Por agora, usaremos os dados mockados antigos para essa parte
                 const outrasAtividadesData = [
-                    { name: 'Correção de Cartilha', count: 10, pedagogue: 'Josimeri Grein' },
-                    { name: 'Correção de Cartilha', count: 12, pedagogue: 'Leandro Prado' },
-                    { name: 'Evento', count: 5, pedagogue: 'Enderson Lopes' },
-                    { name: 'Evento', count: 6, pedagogue: 'Josimeri Grein' },
-                    { name: 'Reunião', count: 8, pedagogue: 'Leandro Prado' },
-                    { name: 'Formação Pedagógica', count: 3, pedagogue: 'Josimeri Grein' },
-                    { name: 'Formação Técnica', count: 3, pedagogue: 'Enderson Lopes' },
-                    { name: 'Outro', count: 30, pedagogue: 'Leandro Prado' },
+                    { name: 'Correção de Cartilha', count: 10, pedagogue: 'Josimeri Grein' }, { name: 'Correção de Cartilha', count: 12, pedagogue: 'Leandro Prado' },
+                    { name: 'Evento', count: 5, pedagogue: 'Enderson Lopes' }, { name: 'Evento', count: 6, pedagogue: 'Josimeri Grein' },
+                    { name: 'Reunião', count: 8, pedagogue: 'Leandro Prado' }, { name: 'Formação Pedagógica', count: 3, pedagogue: 'Josimeri Grein' },
+                    { name: 'Formação Técnica', count: 3, pedagogue: 'Enderson Lopes' }, { name: 'Outro', count: 30, pedagogue: 'Leandro Prado' },
                     { name: 'Outro', count: 29, pedagogue: 'Josimeri Grein' },
                 ];
-
                 return { courses, activities: outrasAtividadesData, calendarEvents };
             }
 
-
-            // --- LÓGICA DE CÁLCULO DO INDICADOR (KPI) ---
             function calculateKpi(courses) {
-                const CURRENT_DATE = new Date('2025-09-16T12:00:00Z');
+                const CURRENT_DATE = new Date();
                 if (!courses || courses.length === 0) return 0;
-
                 const totalDelivered = courses.filter(c => c.stage === 'Etapa 6: Publicação').length;
                 const normalIndicator = (totalDelivered / courses.length);
-
                 const upcomingCourses = courses.filter(c => c.stage !== 'Etapa 6: Publicação' && c._deliveryDate);
                 if (upcomingCourses.length === 0) return 1;
-
                 let totalMonthsAway = 0;
                 upcomingCourses.forEach(c => {
                     const deliveryDate = c._deliveryDate;
                     const monthsDiff = (deliveryDate.getFullYear() - CURRENT_DATE.getFullYear()) * 12 + (deliveryDate.getMonth() - CURRENT_DATE.getMonth());
                     totalMonthsAway += Math.max(0, monthsDiff);
                 });
-
                 const avgMonthsAway = totalMonthsAway / upcomingCourses.length;
-
-                if (avgMonthsAway >= 6) {
-                    return 0.8;
-                }
-                if (avgMonthsAway >= 4) {
-                    return Math.max(0.4, normalIndicator);
-                }
+                if (avgMonthsAway >= 6) return 0.8;
+                if (avgMonthsAway >= 4) return Math.max(0.4, normalIndicator);
                 return normalIndicator;
             }
-
-
-            // --- SELEÇÃO DE ELEMENTOS DO DOM ---
+            
+            // --- LÓGICA DE INICIALIZAÇÃO E UI ---
             const pageLinks = document.querySelectorAll('.page-link');
             const mainTitleElement = document.getElementById('main-title');
-            const pages = {
-                dashboard: document.getElementById('page-dashboard'),
-                relatorio: document.getElementById('page-relatorio'),
-                pedagogo: document.getElementById('page-pedagogo')
-            };
-            const pageTitles = {
-                dashboard: 'ACOMPANHAMENTO DE ENTREGAS',
-                relatorio: 'ACOMPANHAMENTO DE ENTREGAS',
-                pedagogo: 'ACOMPANHAMENTO DE ENTREGAS'
-            };
-
-            // --- LÓGICA DE NAVEGAÇÃO E UI GERAL ---
+            const pages = { dashboard: document.getElementById('page-dashboard'), relatorio: document.getElementById('page-relatorio'), pedagogo: document.getElementById('page-pedagogo') };
+            const pageTitles = { dashboard: 'ACOMPANHAMENTO DE ENTREGAS', relatorio: 'ACOMPANHAMENTO DE ENTREGAS', pedagogo: 'ACOMPANHAMENTO DE ENTREGAS' };
             const pageChangeResetter = new EventTarget();
 
             Object.values(pages).forEach(page => {
-                if (page) {
+                if(page) {
                     page.style.opacity = '0';
                     page.style.pointerEvents = 'none';
                 }
             });
-
             function showPage(pageId) {
                 Object.entries(pages).forEach(([id, pageEl]) => {
                     if (pageEl) {
@@ -595,106 +541,31 @@
                         pageEl.style.pointerEvents = (id === pageId) ? 'auto' : 'none';
                     }
                 });
-                if (pageTitles[pageId]) {
-                    mainTitleElement.textContent = pageTitles[pageId];
-                }
+                if (pageTitles[pageId]) mainTitleElement.textContent = pageTitles[pageId];
             }
-
             pageLinks.forEach(link => {
                 link.addEventListener('click', (e) => {
                     e.preventDefault();
-                    const pageId = link.dataset.page;
-                    showPage(pageId);
+                    showPage(link.dataset.page);
                     setTimeout(() => pageChangeResetter.dispatchEvent(new Event('reset')), 0);
-                    document.getElementById('menu-dropdown').classList.add('hidden');
-                    document.getElementById('sideMenu').classList.remove('show');
                 });
             });
 
-            const resultModal = document.getElementById('result-modal');
-            const modalContent = document.getElementById('modal-content');
-            
-            function openModal(course) {
-                // ... (código do modal existente, sem alterações)
-            }
-            window.addEventListener('openCourseModal', e => openModal(e.detail));
-            
-            // --- INICIALIZAÇÃO DAS PÁGINAS (MODIFICADAS PARA ACEITAR DADOS) ---
-            
-            function initializeDashboard(courses, calendarEvents) {
-                // ... (a lógica de inicialização do dashboard permanece a mesma, mas agora usa 'courses' e 'calendarEvents')
-            }
-
-            function initializeReportPage(courses, calendarEvents) {
-                // ... (toda a lógica da página de relatório, agora usando 'courses' e 'calendarEvents' como fonte da verdade)
-            }
-
-            function initializePedagogoPage(courses, activities, calendarEvents) {
-                // ... (toda a lógica da página de pedagogo, agora usando os dados passados)
-            }
-            
-            // --- FUNÇÃO PRINCIPAL DE INICIALIZAÇÃO DA APLICAÇÃO ---
-            async function main() {
-                try {
-                    const response = await fetch('data.json');
-                    if (!response.ok) {
-                        throw new Error(`Erro ao carregar o arquivo: ${response.statusText}`);
-                    }
-                    const rawData = await response.json();
-                    
-                    const { courses, activities, calendarEvents } = transformData(rawData);
-                    
-                    masterCourseData = courses;
-                    masterActivityData = activities;
-                    masterCalendarEvents = calendarEvents;
-
-                    initializeApp();
-
-                } catch (error) {
-                    console.error("Não foi possível carregar ou processar os dados:", error);
-                    document.body.innerHTML = `<div class="w-full h-full flex items-center justify-center text-red-600 font-semibold p-8">
-                        Erro ao carregar 'data.json'. Verifique se o arquivo existe e está no formato JSON correto. Veja o console para mais detalhes.
-                    </div>`;
-                }
-            }
-
-            function initializeApp() {
-                 // Componentes que são inicializados apenas uma vez
-                initializeGlobalUI();
-                
-                // Funções que dependem dos dados mestre
-                populateYearSelector();
-
-                // Inicializa as páginas com os dados carregados
-                initializeDashboard(masterCourseData, masterCalendarEvents);
-                initializeReportPage(masterCourseData, masterCalendarEvents);
-                initializePedagogoPage(masterCourseData, masterActivityData, masterCalendarEvents);
-
-                // Dispara a primeira atualização para filtrar pelo ano padrão
-                window.dispatchEvent(new CustomEvent('yearChanged'));
-                showPage('dashboard');
-            }
-
-            function initializeGlobalUI() {
-                // ... (toda a lógica de menus, modal, busca, que não depende diretamente dos dados)
-            }
+            function initializeGlobalUI() { /* ... Lógica de menus, modal, busca ... */ }
+            function initializeDashboard(courses, calendarEvents) { /* ... Lógica da página de dashboard ... */ }
+            function initializeReportPage(courses, calendarEvents) { /* ... Lógica da página de relatório ... */ }
+            function initializePedagogoPage(courses, activities, calendarEvents) { /* ... Lógica da página de pedagogo ... */ }
 
             const getYearFilteredData = () => {
                 if (selectedYear === 'All' || !selectedYear) return [...masterCourseData];
                 return masterCourseData.filter(c => c._deliveryDate && c._deliveryDate.getFullYear() == selectedYear);
             };
 
-            const populateYearSelector = () => {
+            function populateYearSelector() {
                 const yearSelector = document.getElementById('year-selector');
-                const years = [...new Set(masterCourseData.map(c => c._deliveryDate ? c._deliveryDate.getFullYear() : null))]
-                    .filter(y => y) // remove nulls
-                    .sort();
-                
+                const years = [...new Set(masterCourseData.map(c => c._deliveryDate ? c._deliveryDate.getFullYear() : null))].filter(y => y).sort();
                 yearSelector.innerHTML = '<option value="All">Todos</option>';
-                years.forEach(year => {
-                    yearSelector.innerHTML += `<option value="${year}">${year}</option>`;
-                });
-                
+                years.forEach(year => yearSelector.innerHTML += `<option value="${year}">${year}</option>`);
                 const currentYear = new Date().getFullYear().toString();
                 if (years.includes(parseInt(currentYear))) {
                     yearSelector.value = currentYear;
@@ -703,14 +574,50 @@
                     yearSelector.value = years[0];
                     selectedYear = years[0];
                 }
-            };
-
+            }
+            
             document.getElementById('year-selector').addEventListener('change', (e) => {
                 selectedYear = e.target.value;
                 window.dispatchEvent(new CustomEvent('yearChanged'));
             });
+            
+            // --- FUNÇÃO PRINCIPAL ---
+            async function main() {
+                // MODIFICADO: URL do OneDrive convertida para um link de download direto e usada com um proxy CORS.
+                const oneDriveUrl = "https://senarpr-my.sharepoint.com/:u:/g/personal/luiz_borato_senarpr_org_br1/ET4OGBkSvPRHu6YBTzus5XMBOi8WjcADfs5CJ6ayM4CB7A?e=2iDItf&download=1";
+                const proxyUrl = "https://api.allorigins.win/raw?url=";
+                const finalUrl = proxyUrl + encodeURIComponent(oneDriveUrl);
 
-            // Inicia o processo de carregamento de dados
+                try {
+                    const response = await fetch(finalUrl);
+                    if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
+                    const rawData = await response.json();
+                    
+                    const { courses, activities, calendarEvents } = transformData(rawData);
+                    masterCourseData = courses;
+                    masterActivityData = activities;
+                    masterCalendarEvents = calendarEvents;
+
+                    initializeApp();
+
+                } catch (error) {
+                    console.error("Não foi possível carregar ou processar os dados:", error);
+                    document.body.innerHTML = `<div class="w-full h-full flex items-center justify-center text-red-600 font-semibold p-8 text-center">
+                        Erro ao carregar os dados do OneDrive. <br/> Verifique se o link de compartilhamento ainda é válido e se sua conexão com a internet está funcionando. <br/> (Detalhe do erro: ${error.message})
+                    </div>`;
+                }
+            }
+
+            function initializeApp() {
+                initializeGlobalUI();
+                populateYearSelector();
+                initializeDashboard(masterCourseData, masterCalendarEvents);
+                initializeReportPage(masterCourseData, masterCalendarEvents);
+                initializePedagogoPage(masterCourseData, masterActivityData, masterCalendarEvents);
+                window.dispatchEvent(new CustomEvent('yearChanged'));
+                showPage('dashboard');
+            }
+
             main();
         });
     </script>
