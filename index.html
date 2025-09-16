@@ -27,36 +27,41 @@
         }
     </script>
     <style>
-        /* Estilos Globais Modificados para Escalonamento */
-        html, body {
-            font-family: 'Inter', sans-serif;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* Impede barras de rolagem no nível da página */
+        /* Estilos Globais para Layout Fluido */
+        html {
+            /* Define a base da fonte como 0.833% da largura da tela (16px em uma tela de 1920px).
+               Isso faz com que todas as unidades 'rem' do Tailwind se tornem proporcionais à tela. */
+            font-size: 0.833vw;
         }
 
-        #scaling-wrapper {
-            /* Dimensões do design original (baseado em um monitor Full HD) */
-            width: 1920px;
-            height: 1080px;
+        /* Define um tamanho mínimo para a fonte em telas pequenas para garantir a legibilidade. */
+        @media (max-width: 1000px) {
+            html {
+                font-size: 8.33px;
+            }
+        }
+        
+        /* Define um tamanho máximo para a fonte em telas muito grandes para evitar textos gigantes. */
+        @media (min-width: 2400px) {
+            html {
+                font-size: 20px;
+            }
+        }
 
-            /* Posicionamento para o escalonamento funcionar corretamente */
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform-origin: center center;
-            overflow: hidden; /* Contém o conteúdo dentro das dimensões fixas */
-            
-            /* Adiciona o fundo aqui para cobrir a tela inteira */
+        body {
+            font-family: 'Inter', sans-serif;
+            width: 100vw;
+            height: 100vh;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Impede barras de rolagem */
             background-color: #f9fafb; /* bg-gray-50 */
         }
 
         main {
             position: relative;
-            margin-top: 7rem; /* Equivalente ao h-28 do header */
-            /* A altura agora é baseada na altura fixa do wrapper, não na viewport */
-            height: calc(1080px - 7rem);
+            margin-top: 7rem; /* Esta unidade 'rem' agora é responsiva */
+            height: calc(100vh - 7rem); /* Ocupa o restante da altura da tela */
         }
 
         .page-content {
@@ -121,10 +126,9 @@
         }
     </style>
 </head>
-<body class="text-gray-800">
+<body class="text-gray-800 bg-gray-50">
 
-<!-- Wrapper Adicionado para controlar o escalonamento -->
-<div id="scaling-wrapper">
+    <!-- O conteúdo agora vive diretamente no body, sem o wrapper -->
 
     <!-- Cabeçalho -->
     <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
@@ -419,33 +423,7 @@
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             
-            // --- CÓDIGO NOVO PARA ESCALONAMENTO ---
-            function scaleDashboard() {
-                const wrapper = document.getElementById('scaling-wrapper');
-                // As mesmas dimensões que você definiu no CSS
-                const designWidth = 1920;
-                const designHeight = 1080;
-
-                const screenWidth = window.innerWidth;
-                const screenHeight = window.innerHeight;
-
-                // Calcula a proporção de escala para largura e altura
-                const scaleX = screenWidth / designWidth;
-                const scaleY = screenHeight / designHeight;
-
-                // Usa a menor proporção para garantir que tudo caiba na tela
-                const scale = Math.min(scaleX, scaleY);
-
-                // Aplica a transformação
-                wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
-            }
-            
-            // Escala o dashboard quando a página carrega
-            scaleDashboard();
-            
-            // E também escala toda vez que a janela é redimensionada
-            window.addEventListener('resize', scaleDashboard);
-            // --- FIM DO CÓDIGO NOVO ---
+            // O SCRIPT DE ESCALONAMENTO FOI REMOVIDO
 
             // --- DADOS MOCKADOS ---
             const fullCourseData = [
