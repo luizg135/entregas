@@ -420,134 +420,220 @@
     </div>
 
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            
-            // O SCRIPT DE ESCALONAMENTO FOI REMOVIDO
+<script>
+    document.addEventListener('DOMContentLoaded', async function() {
+        
+        function scaleDashboard() {
+            const wrapper = document.getElementById('scaling-wrapper');
+            const designWidth = 1920;
+            const designHeight = 1080;
+            const screenWidth = window.innerWidth;
+            const screenHeight = window.innerHeight;
+            const scaleX = screenWidth / designWidth;
+            const scaleY = screenHeight / designHeight;
+            const scale = Math.min(scaleX, scaleY);
+            wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
+        }
+        scaleDashboard();
+        window.addEventListener('resize', scaleDashboard);
 
-            // --- DADOS MOCKADOS ---
-            const fullCourseData = [
-                { name: 'Inteligência Artificial para Iniciantes', level: 'Básico', type: 'Novo', date: '25/09/2025', tech: 'Carlos Silva', pedagogue: 'Josimeri Grein', stage: 'Etapa 4: Gravação' },
-                { name: 'Desenvolvimento Web com React', level: 'Intermediário', type: 'Novo', date: '10/10/2025', tech: 'Bruna Costa', pedagogue: 'Leandro Prado', stage: 'Etapa 3: Roteirização' },
-                { name: 'Marketing Digital Avançado', level: 'Avançado', type: 'Atualização', date: '28/10/2025', tech: 'Lucas Souza', pedagogue: 'Mariana Lima', stage: 'Etapa 5: Edição' },
-                { name: 'Gestão de Projetos Ágeis', level: 'Intermediário', type: 'Novo', date: '15/11/2025', tech: 'Fernanda Oliveira', pedagogue: 'Enderson Lopes', stage: 'Etapa 2: Planejamento' },
-                { name: 'Finanças Pessoais e Investimentos', level: 'Básico', type: 'Atualização', date: '01/12/2025', tech: 'Gabriel Santos', pedagogue: 'Sofia Ferreira', stage: 'Etapa 1: Análise' },
-                { name: 'Ciência de Dados com Python', level: 'Avançado', type: 'Novo', date: '10/01/2026', tech: 'Amanda Rocha', pedagogue: 'Pedro Martins', stage: 'Etapa 6: Publicação' },
-                { name: 'Design de UI/UX para Mobile', level: 'Intermediário', type: 'Atualização', date: '25/01/2026', tech: 'Vinicius Gomes', pedagogue: 'Josimeri Grein', stage: 'Etapa 4: Gravação' },
-                { name: 'Fotografia para Redes Sociais', level: 'Básico', type: 'Novo', date: '08/02/2026', tech: 'Letícia Barros', pedagogue: 'Daniel Ribeiro', stage: 'Etapa 3: Roteirização' },
-                { name: 'Edição de Vídeo com DaVinci Resolve', level: 'Intermediário', type: 'Novo', date: '22/02/2026', tech: 'Rafael Azevedo', pedagogue: 'Carolina Dias', stage: 'Etapa 5: Edição' },
-                { name: 'Formação: Atualização Manejo Integrado da Soja', level: 'Único', type: 'Atualização', date: '02/10/2025', tech: 'José Almeida', pedagogue: 'Fátima Silva', stage: 'Etapa 6: Publicação' },
-                { name: 'Piloto: Curso novo | Marketing no agro - Intermediário', level: 'Intermediário', type: 'Novo', date: '03/10/2025', tech: 'Carlos Silva', pedagogue: 'Leandro Prado', stage: 'Etapa 5: Edição' },
-                { name: 'Piloto: Curso novo | Alimentos biscoitos e bolachas | Único', level: 'Único', type: 'Atualização', date: '10/10/2025', tech: 'Mariana Lima', pedagogue: 'Josimeri Grein', stage: 'Etapa 3: Roteirização' },
-            ];
-            
-            const outrasAtividadesData = [
-                { name: 'Correção de Cartilha', count: 10, pedagogue: 'Josimeri Grein' },
-                { name: 'Correção de Cartilha', count: 12, pedagogue: 'Leandro Prado' },
-                { name: 'Evento', count: 5, pedagogue: 'Enderson Lopes' },
-                { name: 'Evento', count: 6, pedagogue: 'Josimeri Grein' },
-                { name: 'Reunião', count: 8, pedagogue: 'Leandro Prado' },
-                { name: 'Formação Pedagógica', count: 3, pedagogue: 'Josimeri Grein' },
-                { name: 'Formação Técnica', count: 3, pedagogue: 'Enderson Lopes' },
-                { name: 'Outro', count: 30, pedagogue: 'Leandro Prado' },
-                { name: 'Outro', count: 29, pedagogue: 'Josimeri Grein' },
-            ];
+        // --- DADOS GLOBAIS E CONFIGURAÇÕES ---
+        let allEventsData = []; 
+        let allActivitiesData = [];
+        let selectedYear = 'All';
+        const yearSelector = document.getElementById('year-selector');
 
-            const stagePercentageMap = { 'Análise': 5, 'Planejamento': 15, 'Roteirização': 40, 'Gravação': 60, 'Edição': 80, 'Publicação': 100 };
- 
-            function getIndicatorColor(percentage) {
-                if (percentage <= 5) return { bg: 'bg-gray-400', hex: '#9ca3af', lightBg: 'bg-gray-300', textColor: 'text-gray-800' };
-                if (percentage <= 15) return { bg: 'bg-red-500', hex: '#ef4444', lightBg: 'bg-red-400' };
-                if (percentage <= 40) return { bg: 'bg-orange-400', hex: '#f97316', lightBg: 'bg-orange-400' };
-                if (percentage <= 70) return { bg: 'bg-blue-500', hex: '#3b82f6', lightBg: 'bg-blue-400' };
-                return { bg: 'bg-brand-green', hex: '#235937', lightBg: 'bg-green-600' };
+        const stagePercentageMap = { 'Análise': 5, 'Planejamento': 15, 'Roteirização': 40, 'Gravação': 60, 'Edição': 80, 'Publicação': 100 };
+        const pedagogoNameMap = { "Josimeri": "Josimeri Grein", "Leandro": "Leandro Prado", "Enderson": "Enderson Lopes" };
+
+        // --- FUNÇÕES DE BUSCA E TRATAMENTO DE DADOS ---
+        async function fetchAllData() {
+            try {
+                const ONEDRIVE_URL = 'https://senarpr-my.sharepoint.com/:u:/g/personal/luiz_borato_senarpr_org_br1/ET4OGBkSvPRHu6YBTzus5XMBOi8WjcADfs5CJ6ayM4CB7A?e=jxHFPD&download=1';
+                const response = await fetch(ONEDRIVE_URL, { cache: "no-store" });
+                if (!response.ok) throw new Error('Network response was not ok');
+                return await response.json();
+            } catch (error) {
+                console.warn("Falha ao buscar dados reais. Usando dados mock de exemplo.", error);
+                 return {
+                    checklist: [{ "Curso": "Curso Mock de IA (Falha na API)", "Nível": "Básico", "Tipo": "Curso novo", "Pedagogo": "Ana", "Previsão": "30/09/2025", "Etapa Atual": "Etapa 4: Gravação", "filename": "Checklist de Entregas - Andreina Ramos.xlsx", "Início (Piloto)": "16/09/2025", "Final (Piloto)": "18/09/2025" }],
+                    outrasFormacoes: [], eventos: [], outrasAtividades: [{ "Tipo": "Outro", "Tema": "Atividade Mock (Falha na API)", "Início (Data)": "30/06/2025", "Final (Data)": "03/07/2025", "filename": "Outras Atividades - Josimeri Grein.xlsx" }]
+                };
             }
+        }
 
-            const parseDate = (dateStr) => {
-                const [day, month, year] = dateStr.split('/');
-                return new Date(year, month - 1, day);
-            };
+        const parseDate = (dateStr) => {
+            if (!dateStr || typeof dateStr !== 'string') return null;
+            const parts = dateStr.split('/');
+            if (parts.length !== 3) return null;
+            const [day, month, year] = parts.map(p => parseInt(p, 10));
+            if (isNaN(day) || isNaN(month) || isNaN(year) || year < 1000) return null;
+            return new Date(year, month - 1, day);
+        };
 
-            // --- SELEÇÃO DE ELEMENTOS DO DOM ---
-            const pageLinks = document.querySelectorAll('.page-link');
-            const mainTitleElement = document.getElementById('main-title');
+        function processData(rawData) {
+            const finalEvents = [];
+            const finalActivities = [];
             
-            const pages = {
-                dashboard: document.getElementById('page-dashboard'),
-                relatorio: document.getElementById('page-relatorio'),
-                pedagogo: document.getElementById('page-pedagogo')
-            };
-            const pageTitles = {
-                dashboard: 'ACOMPANHAMENTO DE ENTREGAS',
-                relatorio: 'ACOMPANHAMENTO DE ENTREGAS',
-                pedagogo: 'ACOMPANHAMENTO DE ENTREGAS'
-            };
-
-            // --- LÓGICA DE NAVEGAÇÃO E UI GERAL ---
-            const pageChangeResetter = new EventTarget();
-
-            Object.values(pages).forEach(page => {
-                if (page) {
-                    page.style.opacity = '0';
-                    page.style.pointerEvents = 'none';
+            const normalizePedagogoName = (name) => {
+                if (!name) return 'N/A';
+                const lowerName = name.toLowerCase();
+                for (const key in pedagogoNameMap) {
+                    if (lowerName.includes(key.toLowerCase())) return pedagogoNameMap[key];
                 }
-            });
+                return name;
+            };
 
-            function showPage(pageId) {
-                Object.entries(pages).forEach(([id, pageEl]) => {
-                    if (pageEl) {
-                        pageEl.style.opacity = (id === pageId) ? '1' : '0';
-                        pageEl.style.pointerEvents = (id === pageId) ? 'auto' : 'none';
+            const extractNameFromFilename = (filename) => {
+                if (!filename || typeof filename !== 'string') return 'N/A';
+                const parts = filename.replace('.xlsx', '').split(' - ');
+                return parts.length > 1 ? parts[parts.length - 1].trim() : 'N/A';
+            };
+            
+            if (rawData.checklist && Array.isArray(rawData.checklist)) {
+                rawData.checklist.forEach(item => {
+                    const deriveStage = (item) => {
+                        if (item['Etapa 6'] === '■') return 'Etapa 6: Publicação';
+                        if (item['Etapa 5'] === '■') return 'Etapa 5: Edição';
+                        if (item['Etapa 4'] === '■') return 'Etapa 4: Gravação';
+                        if (item['Etapa 3'] === '■') return 'Etapa 3: Roteirização';
+                        if (item['Etapa 2'] === '■') return 'Etapa 2: Planejamento';
+                        if (item['Etapa 1'] === '■') return 'Etapa 1: Análise';
+                        return 'Etapa 1: Análise';
+                    };
+
+                    const baseCourse = {
+                        name: item['Curso'] || 'Nome não definido',
+                        level: item['Nível'] || 'N/A',
+                        type: String(item['Tipo']).toLowerCase().includes('atualização') ? 'Atualização' : 'Novo',
+                        tech: extractNameFromFilename(item.filename),
+                        pedagogue: normalizePedagogoName(item['Pedagogo']),
+                        previsaoFinal: item['Previsão'] || null,
+                        stage: item['Etapa Atual'] || deriveStage(item)
+                    };
+
+                    if (item['Início (Piloto)'] && item['Final (Piloto)']) {
+                        finalEvents.push({ ...baseCourse, eventType: 'Piloto', name: `${baseCourse.name} (Piloto)`, startDate: item['Início (Piloto)'], date: item['Final (Piloto)'] });
+                    }
+                    
+                    if (item['Início (Formação)'] && item['Final (Formação)']) {
+                         finalEvents.push({ ...baseCourse, eventType: 'Formação', name: `${baseCourse.name} (Formação)`, startDate: item['Início (Formação)'], date: item['Final (Formação)'] });
                     }
                 });
-                if (pageTitles[pageId]) {
-                    mainTitleElement.textContent = pageTitles[pageId];
-                }
             }
 
-            pageLinks.forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const pageId = link.dataset.page;
+            if (rawData.outrasFormacoes && Array.isArray(rawData.outrasFormacoes)) {
+                 rawData.outrasFormacoes.forEach(item => {
+                    const baseCourseName = item['Curso'];
+                    const linkedCourse = finalEvents.find(e => e.name.startsWith(baseCourseName));
                     
-                    showPage(pageId);
-                    
-                    setTimeout(() => pageChangeResetter.dispatchEvent(new Event('reset')), 0);
-
-                    document.getElementById('menu-dropdown').classList.add('hidden');
-                    document.getElementById('sideMenu').classList.remove('show');
+                    finalEvents.push({
+                        name: `${item['Curso']} (Formação Adicional)`,
+                        level: item['Nível'] || (linkedCourse ? linkedCourse.level : 'N/A'),
+                        type: 'Formação',
+                        date: item['Final (Data)'] || 'N/A',
+                        startDate: item['Início (Data)'] || 'N/A',
+                        tech: linkedCourse ? linkedCourse.tech : 'N/A',
+                        pedagogue: normalizePedagogoName(item['Pedagogo'] || (linkedCourse ? linkedCourse.pedagogue : extractNameFromFilename(item.filename))),
+                        stage: 'Etapa 6: Publicação'
+                    });
+                });
+            }
+            
+            const activitySources = [ ...(rawData.eventos || []), ...(rawData.outrasAtividades || []) ];
+            activitySources.forEach(item => {
+                 finalActivities.push({
+                    name: item['Tema'] || 'Atividade sem nome',
+                    type: item['Tipo'] || 'Outro',
+                    date: item['Início (Data)'] || 'N/A',
+                    pedagogue: normalizePedagogoName(extractNameFromFilename(item.filename))
                 });
             });
 
-            const resultModal = document.getElementById('result-modal');
-            const modalContent = document.getElementById('modal-content');
-            
-            function openModal(course) {
-                const stageKey = course.stage.split(':')[1]?.trim() || 'Análise';
-                const percentage = stagePercentageMap[stageKey] || 0;
-                const colors = getIndicatorColor(percentage);
+            return { processedEvents: finalEvents, processedActivities: finalActivities };
+        }
 
-                const indicatorEl = document.getElementById('modal-stage-indicator');
-                const modalHeader = document.getElementById('modal-header');
+        const allRawData = await fetchAllData();
+        const { processedEvents, processedActivities } = processData(allRawData);
+        allEventsData = processedEvents;
+        allActivitiesData = processedActivities;
 
-                indicatorEl.className = 'w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm';
-                indicatorEl.classList.add(colors.lightBg, colors.textColor || 'text-white');
-                indicatorEl.textContent = `${percentage}%`;
-                
-                modalHeader.style.backgroundColor = colors.hex;
+        const pageLinks = document.querySelectorAll('.page-link');
+        const mainTitleElement = document.getElementById('main-title');
+        
+        const pages = {
+            dashboard: document.getElementById('page-dashboard'),
+            relatorio: document.getElementById('page-relatorio'),
+            pedagogo: document.getElementById('page-pedagogo')
+        };
+        const pageTitles = {
+            dashboard: 'ACOMPANHAMENTO DE ENTREGAS',
+            relatorio: 'ACOMPANHAMENTO DE ENTREGAS',
+            pedagogo: 'ACOMPANHAMENTO DE ENTREGAS'
+        };
 
-                document.getElementById('modal-title').textContent = course.name;
-                document.getElementById('modal-level').textContent = course.level;
-                document.getElementById('modal-date').textContent = course.date;
-                document.getElementById('modal-tech').textContent = course.tech;
-                document.getElementById('modal-pedagogue').textContent = course.pedagogue;
-                document.getElementById('modal-stage').textContent = course.stage;
-                resultModal.classList.remove('hidden');
-                setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        const pageChangeResetter = new EventTarget();
+
+        Object.values(pages).forEach(page => {
+            if (page) {
+                page.style.opacity = '0';
+                page.style.pointerEvents = 'none';
             }
-            window.addEventListener('openCourseModal', e => openModal(e.detail));
+        });
+
+        function showPage(pageId) {
+            Object.entries(pages).forEach(([id, pageEl]) => {
+                if (pageEl) {
+                    pageEl.style.opacity = (id === pageId) ? '1' : '0';
+                    pageEl.style.pointerEvents = (id === pageId) ? 'auto' : 'none';
+                }
+            });
+            if (pageTitles[pageId]) {
+                mainTitleElement.textContent = pageTitles[pageId];
+            }
+        }
+
+        pageLinks.forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pageId = link.dataset.page;
+                
+                showPage(pageId);
+                
+                setTimeout(() => pageChangeResetter.dispatchEvent(new Event('reset')), 0);
+
+                document.getElementById('menu-dropdown').classList.add('hidden');
+                document.getElementById('sideMenu').classList.remove('show');
+            });
+        });
+
+        const resultModal = document.getElementById('result-modal');
+        const modalContent = document.getElementById('modal-content');
+        
+        function openModal(course) {
+             const stageKey = course.stage.split(':')[1]?.trim() || 'Análise';
+            const percentage = stagePercentageMap[stageKey] || 0;
+            const colors = getIndicatorColor(percentage);
+
+            const indicatorEl = document.getElementById('modal-stage-indicator');
+            const modalHeader = document.getElementById('modal-header');
+
+            indicatorEl.className = 'w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm';
+            indicatorEl.classList.add(colors.lightBg, colors.textColor || 'text-white');
+            indicatorEl.textContent = `${percentage}%`;
             
-            // --- INICIALIZAÇÃO DE COMPONENTES DE CADA PÁGINA ---
+            modalHeader.style.backgroundColor = colors.hex;
+
+            document.getElementById('modal-title').textContent = course.name;
+            document.getElementById('modal-level').textContent = course.level;
+            document.getElementById('modal-date').textContent = course.date;
+            document.getElementById('modal-tech').textContent = course.tech;
+            document.getElementById('modal-pedagogue').textContent = course.pedagogue;
+            document.getElementById('modal-stage').textContent = course.stage;
+            resultModal.classList.remove('hidden');
+            setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
+        }
+        window.addEventListener('openCourseModal', e => openModal(e.detail));
             
             function initializeDashboard() {
                 const searchInput = document.getElementById('search-input');
