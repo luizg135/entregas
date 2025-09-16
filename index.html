@@ -27,16 +27,36 @@
         }
     </script>
     <style>
-        /* Estilos Globais */
+        /* Estilos Globais Modificados para Escalonamento */
         html, body {
-            overflow: hidden; /* Impede a rolagem no nível do body */
             font-family: 'Inter', sans-serif;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Impede barras de rolagem no nível da página */
+        }
+
+        #scaling-wrapper {
+            /* Dimensões do design original (baseado em um monitor Full HD) */
+            width: 1920px;
+            height: 1080px;
+
+            /* Posicionamento para o escalonamento funcionar corretamente */
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform-origin: center center;
+            overflow: hidden; /* Contém o conteúdo dentro das dimensões fixas */
+            
+            /* Adiciona o fundo aqui para cobrir a tela inteira */
+            background-color: #f9fafb; /* bg-gray-50 */
         }
 
         main {
             position: relative;
-            margin-top: 7rem; /* Equivalente ao h-28 do header, criando espaço para ele */
-            height: calc(100vh - 7rem); /* Ocupa exatamente o espaço vertical restante */
+            margin-top: 7rem; /* Equivalente ao h-28 do header */
+            /* A altura agora é baseada na altura fixa do wrapper, não na viewport */
+            height: calc(1080px - 7rem);
         }
 
         .page-content {
@@ -46,7 +66,7 @@
             bottom: 0;
             left: 0;
             padding: 0 2rem 1.5rem 2rem;
-            overflow-y: auto; /* Adicionado para permitir rolagem se o conteúdo for muito grande */
+            overflow-y: auto;
             transition: opacity 0.3s ease-in-out;
         }
 
@@ -68,10 +88,10 @@
             transform: scale(1.1);
         }
         .line-clamp-2 {
-           overflow: hidden;
-           display: -webkit-box;
-           -webkit-box-orient: vertical;
-           -webkit-line-clamp: 2;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
         }
         .filter-option-label {
             display: inline-block;
@@ -101,11 +121,14 @@
         }
     </style>
 </head>
-<body class="min-h-screen w-screen bg-gray-50 text-gray-800">
+<body class="text-gray-800">
+
+<!-- Wrapper Adicionado para controlar o escalonamento -->
+<div id="scaling-wrapper">
 
     <!-- Cabeçalho -->
     <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
-        <img src="https://i.imgur.com/ruDtZT7.png" alt="Logotipo" class="h-12 w-auto">
+        <img src="Sistema-FAEP-SENAR-PR.png" alt="Logotipo" class="h-12 w-auto">
         <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
             <h1 id="main-title" class="text-2xl font-bold text-brand-green whitespace-nowrap">ACOMPANHAMENTO DE ENTREGAS</h1>
         </div>
@@ -395,6 +418,35 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            
+            // --- CÓDIGO NOVO PARA ESCALONAMENTO ---
+            function scaleDashboard() {
+                const wrapper = document.getElementById('scaling-wrapper');
+                // As mesmas dimensões que você definiu no CSS
+                const designWidth = 1920;
+                const designHeight = 1080;
+
+                const screenWidth = window.innerWidth;
+                const screenHeight = window.innerHeight;
+
+                // Calcula a proporção de escala para largura e altura
+                const scaleX = screenWidth / designWidth;
+                const scaleY = screenHeight / designHeight;
+
+                // Usa a menor proporção para garantir que tudo caiba na tela
+                const scale = Math.min(scaleX, scaleY);
+
+                // Aplica a transformação
+                wrapper.style.transform = `translate(-50%, -50%) scale(${scale})`;
+            }
+            
+            // Escala o dashboard quando a página carrega
+            scaleDashboard();
+            
+            // E também escala toda vez que a janela é redimensionada
+            window.addEventListener('resize', scaleDashboard);
+            // --- FIM DO CÓDIGO NOVO ---
+
             // --- DADOS MOCKADOS ---
             const fullCourseData = [
                 { name: 'Inteligência Artificial para Iniciantes', level: 'Básico', type: 'Novo', date: '25/09/2025', tech: 'Carlos Silva', pedagogue: 'Josimeri Grein', stage: 'Etapa 4: Gravação' },
@@ -1200,6 +1252,8 @@
 
         });
     </script>
+
+</div> <!-- Fim do #scaling-wrapper -->
 
 </body>
 </html>
