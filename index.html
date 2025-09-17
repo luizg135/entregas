@@ -372,30 +372,26 @@
                 document.getElementById('modal-pedagogue').textContent = course.pedagogo;
                 document.getElementById('modal-stage').textContent = course.etapaAtual;
                 
-                // Populando a aba de cronograma
                 const scheduleContent = document.getElementById('modal-tab-content-schedule');
                 let scheduleHtml = '';
                 
-                // Adiciona o piloto do próprio curso
                 if (course.pilotoInicio && course.pilotoFim) {
-                    scheduleHtml += `<div class="border-b border-gray-200 pb-5">
-                        <strong class="font-semibold text-gray-500 mb-2 block">Curso Piloto</strong>
-                        <div class="text-gray-800 font-medium">De: ${formatDate(course.pilotoInicio)}<br>Até: ${formatDate(course.pilotoFim)}</div>
-                    </div>`;
+                    scheduleHtml += `<div class="pb-5"><strong class="font-semibold text-gray-500 mb-2 block border-b pb-2">Curso Piloto</strong><div class="text-gray-800 font-medium mt-2">De: ${formatDate(course.pilotoInicio)}<br>Até: ${formatDate(course.pilotoFim)}</div></div>`;
                 }
 
-                // Encontra todas as formações para este curso
-                const allFormations = apiData.dadosProcessados.formacoes.filter(f => f.curso === course.nome);
+                const allFormationsForCourse = apiData.dadosProcessados.formacoes.filter(f => f.curso === course.nome);
                 if (course.formacaoInicio && course.formacaoFim) {
-                     allFormations.unshift({ inicio: course.formacaoInicio, fim: course.formacaoFim, nome: "Formação Principal" });
+                    const exists = allFormationsForCourse.some(f => f.inicio.getTime() === course.formacaoInicio.getTime() && f.fim.getTime() === course.formacaoFim.getTime());
+                    if (!exists) {
+                        allFormationsForCourse.unshift({ inicio: course.formacaoInicio, fim: course.formacaoFim, nome: "Formação Principal" });
+                    }
                 }
 
-                if(allFormations.length > 0) {
-                    scheduleHtml += `<div class="pt-5">
-                        <strong class="font-semibold text-gray-500 mb-2 block">Formação de Instrutores</strong>`;
-                    allFormations.forEach(formacao => {
+                if(allFormationsForCourse.length > 0) {
+                    scheduleHtml += `<div class="pt-5"><strong class="font-semibold text-gray-500 mb-2 block border-b pb-2">Formação de Instrutores</strong>`;
+                    allFormationsForCourse.forEach((formacao, index) => {
                         if(formacao.inicio && formacao.fim){
-                             scheduleHtml += `<div class="text-gray-800 font-medium mb-2">De: ${formatDate(formacao.inicio)}<br>Até: ${formatDate(formacao.fim)}</div>`;
+                             scheduleHtml += `<div class="text-gray-800 font-medium mt-2 ${index < allFormationsForCourse.length - 1 ? 'pb-2 mb-2 border-b' : ''}">De: ${formatDate(formacao.inicio)}<br>Até: ${formatDate(formacao.fim)}</div>`;
                         }
                     });
                     scheduleHtml += `</div>`;
@@ -403,7 +399,6 @@
                 
                 scheduleContent.innerHTML = scheduleHtml || '<p class="text-gray-500">Nenhuma data de cronograma definida para este curso.</p>';
                 
-                // Resetando para a aba de detalhes
                 document.querySelector('.modal-tab[data-tab="details"]').classList.add('active');
                 document.querySelector('.modal-tab[data-tab="schedule"]').classList.remove('active');
                 document.getElementById('modal-tab-content-details').classList.remove('hidden');
@@ -692,16 +687,16 @@
                      const grid = document.getElementById('expanded-calendar-grid');
                      grid.innerHTML = ''; 
 
-                     const firstDay = new Date(year, month, 1);
-                     const lastDay = new Date(year, month + 1, 0);
-                     const startDate = new Date(firstDay);
-                     startDate.setDate(startDate.getDate() - firstDay.getDay());
-                     const endDate = new Date(lastDay);
+                     const firstDayOfMonth = new Date(year, month, 1);
+                     const lastDayOfMonth = new Date(year, month + 1, 0);
+                     const startDate = new Date(firstDayOfMonth);
+                     startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
+                     const endDate = new Date(lastDayOfMonth);
                      if (endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
                      
                      const { cursos, formacoes } = getYearFilteredData();
                      const allEventsForMonth = [];
-
+                     
                      cursos.forEach(c => {
                          if (c.pilotoInicio && c.pilotoFim) allEventsForMonth.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
                          if (c.formacaoInicio && c.formacaoFim) allEventsForMonth.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
@@ -736,7 +731,6 @@
                                  eventTop += 22;
                              }
                          });
-
                          grid.appendChild(cell);
                      }
                 };
@@ -811,9 +805,12 @@
                     document.getElementById('ped-next').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() + 1); renderPedagogoPageContent(); };
                     
                     const grid = document.getElementById('ped-grid');
-                    const firstDay = new Date(year, month, 1), lastDay = new Date(year, month + 1, 0);
-                    const startDate = new Date(firstDay); startDate.setDate(startDate.getDate() - firstDay.getDay());
-                    const endDate = new Date(lastDay); if(endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+                    const firstDayOfMonth = new Date(year, month, 1);
+                    const lastDayOfMonth = new Date(year, month + 1, 0);
+                    const startDate = new Date(firstDayOfMonth);
+                    startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
+                    const endDate = new Date(lastDayOfMonth);
+                    if (endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
                     const allEventsForMonth = [];
                     cursos.forEach(c => {
