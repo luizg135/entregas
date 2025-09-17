@@ -318,23 +318,19 @@
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             
-            // --- SCALING SCRIPT ---
             function scaleApp() {
                 const app = document.getElementById('app-container');
                 const baseWidth = 1920;
                 const baseHeight = 1080;
-                
                 const scaleX = window.innerWidth / baseWidth;
                 const scaleY = window.innerHeight / baseHeight;
                 const scale = Math.min(scaleX, scaleY);
-                
                 app.style.transform = `scale(${scale})`;
                 app.style.left = `${(window.innerWidth - baseWidth * scale) / 2}px`;
                 app.style.top = `${(window.innerHeight - baseHeight * scale) / 2}px`;
             }
             window.addEventListener('resize', scaleApp);
             
-            // --- APP LOGIC ---
             let apiData = null;
             let chartInstances = {};
             const API_URL = "https://entregas-api.vercel.app/api/dados";
@@ -355,12 +351,74 @@
                     apiData.dadosProcessados.formacoes.forEach(f => parseDates(f, ['inicio', 'fim']));
                     apiData.dadosProcessados.eventos.forEach(e => parseDates(e, ['inicio', 'fim']));
                     apiData.dadosProcessados.outrasAtividades.forEach(a => parseDates(a, ['inicio', 'fim']));
-                    
                     return true;
                 } catch (error) {
                     console.error("Falha ao buscar dados da API:", error);
                     document.body.innerHTML = `<div class="w-screen h-screen flex items-center justify-center text-center p-8"><h1 class="text-2xl font-bold text-red-600">Erro ao carregar os dados do dashboard. <br>Por favor, tente novamente mais tarde.</h1></div>`;
                     return false;
+                }
+            }
+            
+            function getCalendarEvents(cursos, formacoes) {
+                const allEvents = [];
+                cursos.forEach(c => {
+                    if (c.pilotoInicio && c.pilotoFim) allEvents.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
+                    if (c.formacaoInicio && c.formacaoFim) allEvents.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
+                });
+                formacoes.forEach(f => {
+                    const cursoOriginal = cursos.find(c => c.nome === f.curso);
+                    if (cursoOriginal && f.inicio && f.fim) {
+                        const exists = allEvents.some(e => e.course.nome === cursoOriginal.nome && e.start.getTime() === f.inicio.getTime() && e.end.getTime() === f.fim.getTime());
+                        if(!exists) {
+                            allEvents.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
+                        }
+                    }
+                });
+                return allEvents;
+            }
+
+            function renderCalendarGrid(gridElement, referenceDate, cursos, formacoes) {
+                const month = referenceDate.getMonth();
+                const year = referenceDate.getFullYear();
+                gridElement.innerHTML = '';
+
+                const firstDayOfMonth = new Date(year, month, 1);
+                const lastDayOfMonth = new Date(year, month + 1, 0);
+                const startDate = new Date(firstDayOfMonth);
+                startDate.setDate(startDate.getDate() - startDate.getDay());
+                const endDate = new Date(lastDayOfMonth);
+                if (endDate.getDay() !== 6) {
+                    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+                }
+
+                const allEvents = getCalendarEvents(cursos, formacoes);
+
+                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                    const cell = document.createElement('div');
+                    cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
+                    const dayNumber = document.createElement('span');
+                    dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
+                    dayNumber.textContent = d.getDate();
+                    if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
+                    cell.appendChild(dayNumber);
+
+                    let eventTop = 35;
+                    allEvents.filter(event => d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0))
+                             .forEach(event => {
+                        const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
+                        const width = Math.min(diffDays, 7 - d.getDay());
+                        if (width > 0) {
+                            const eventDiv = document.createElement('div');
+                            eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
+                            eventDiv.style.width = `calc(${width * 100}% - 4px)`;
+                            eventDiv.style.marginLeft = '2px';
+                            eventDiv.style.top = `${eventTop}px`;
+                            eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
+                            cell.appendChild(eventDiv);
+                            eventTop += 22;
+                        }
+                    });
+                    gridElement.appendChild(cell);
                 }
             }
 
@@ -585,7 +643,7 @@
                          icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                          icon.setAttribute('class', 'w-4 h-4 inline-block ml-1'); icon.setAttribute('fill', 'none');
                          icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('stroke', 'currentColor');
-                         icon.innerHTML = currentSort.direction === 'asc' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" />';
+                         icon.innerHTML = currentSort.direction === 'asc' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
                          header.appendChild(icon);
                     }
                 });
@@ -694,71 +752,6 @@
                     setTimeout(() => calendarModal.classList.add('hidden'), 300);
                 };
                 
-                function getCalendarEvents(cursos, formacoes) {
-                    const allEvents = [];
-                    cursos.forEach(c => {
-                        if (c.pilotoInicio && c.pilotoFim) allEvents.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
-                        if (c.formacaoInicio && c.formacaoFim) allEvents.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
-                    });
-                    formacoes.forEach(f => {
-                        const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                        if (cursoOriginal && f.inicio && f.fim) {
-                             const exists = allEvents.some(e => e.course.nome === cursoOriginal.nome && e.start.getTime() === f.inicio.getTime() && e.end.getTime() === f.fim.getTime());
-                             if(!exists) {
-                                allEvents.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
-                             }
-                        }
-                    });
-                    return allEvents;
-                }
-                
-                function renderCalendarGrid(gridElement, referenceDate, cursos, formacoes) {
-                    const month = referenceDate.getMonth();
-                    const year = referenceDate.getFullYear();
-                    gridElement.innerHTML = '';
-
-                    const firstDayOfMonth = new Date(year, month, 1);
-                    const lastDayOfMonth = new Date(year, month + 1, 0);
-
-                    const startDate = new Date(firstDayOfMonth);
-                    startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
-
-                    const endDate = new Date(lastDayOfMonth);
-                    if (endDate.getDay() !== 6) {
-                        endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-                    }
-
-                    const allEvents = getCalendarEvents(cursos, formacoes);
-
-                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                        const cell = document.createElement('div');
-                        cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
-                        const dayNumber = document.createElement('span');
-                        dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
-                        dayNumber.textContent = d.getDate();
-                        if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
-                        cell.appendChild(dayNumber);
-
-                        let eventTop = 35;
-                        allEvents.filter(event => d >= event.start && d <= event.end)
-                                 .filter(event => d.getTime() === event.start.getTime() || d.getDay() === 0)
-                                 .forEach(event => {
-                            const eventDiv = document.createElement('div');
-                            const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
-                            const width = Math.min(diffDays, 7 - d.getDay());
-
-                            eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
-                            eventDiv.style.width = `calc(${width * 100}% - 4px)`;
-                            eventDiv.style.marginLeft = '2px';
-                            eventDiv.style.top = `${eventTop}px`;
-                            eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
-                            cell.appendChild(eventDiv);
-                            eventTop += 22;
-                        });
-                        gridElement.appendChild(cell);
-                    }
-                }
-
                 const renderExpandedCalendar = () => {
                      const month = expandedCalendarDate.getMonth();
                      const year = expandedCalendarDate.getFullYear();
