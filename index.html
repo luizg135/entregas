@@ -59,6 +59,9 @@
         /* Animação de Loading */
         #loading-overlay { transition: opacity 0.3s ease-in-out; }
         .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-left-color: #235937; }
+        
+        /* Badge de filtro verde */
+        #filter-badge { background-color: #235937; }
     </style>
 </head>
 <body class="text-gray-800 bg-gray-50">
@@ -129,7 +132,7 @@
                     <button data-tab="schedule" class="modal-tab">Cronograma</button>
                 </div>
             </div>
-            <div class="p-8">
+            <div class="p-8 max-h-[60vh] overflow-y-auto">
                 <div id="modal-tab-content-details" class="space-y-5">
                     <div class="border-b border-gray-200 pb-5">
                         <div class="space-y-4 text-gray-700">
@@ -204,7 +207,7 @@
                          <h3 class="text-lg font-bold text-brand-green">ACOMPANHAMENTO DETALHADO</h3>
                          <button id="filter-table-btn" class="relative text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
                              <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
-                             <span id="filter-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center"></span>
+                             <span id="filter-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 text-white text-xs font-bold rounded-full flex items-center justify-center"></span>
                          </button>
                     </div>
                     <div class="table-scroll-container">
@@ -372,18 +375,32 @@
                 // Populando a aba de cronograma
                 const scheduleContent = document.getElementById('modal-tab-content-schedule');
                 let scheduleHtml = '';
+                
+                // Adiciona o piloto do próprio curso
                 if (course.pilotoInicio && course.pilotoFim) {
                     scheduleHtml += `<div class="border-b border-gray-200 pb-5">
                         <strong class="font-semibold text-gray-500 mb-2 block">Curso Piloto</strong>
                         <div class="text-gray-800 font-medium">De: ${formatDate(course.pilotoInicio)}<br>Até: ${formatDate(course.pilotoFim)}</div>
                     </div>`;
                 }
+
+                // Encontra todas as formações para este curso
+                const allFormations = apiData.dadosProcessados.formacoes.filter(f => f.curso === course.nome);
                 if (course.formacaoInicio && course.formacaoFim) {
-                    scheduleHtml += `<div class="pt-5">
-                        <strong class="font-semibold text-gray-500 mb-2 block">Formação de Instrutores</strong>
-                        <div class="text-gray-800 font-medium">De: ${formatDate(course.formacaoInicio)}<br>Até: ${formatDate(course.formacaoFim)}</div>
-                    </div>`;
+                     allFormations.unshift({ inicio: course.formacaoInicio, fim: course.formacaoFim, nome: "Formação Principal" });
                 }
+
+                if(allFormations.length > 0) {
+                    scheduleHtml += `<div class="pt-5">
+                        <strong class="font-semibold text-gray-500 mb-2 block">Formação de Instrutores</strong>`;
+                    allFormations.forEach(formacao => {
+                        if(formacao.inicio && formacao.fim){
+                             scheduleHtml += `<div class="text-gray-800 font-medium mb-2">De: ${formatDate(formacao.inicio)}<br>Até: ${formatDate(formacao.fim)}</div>`;
+                        }
+                    });
+                    scheduleHtml += `</div>`;
+                }
+                
                 scheduleContent.innerHTML = scheduleHtml || '<p class="text-gray-500">Nenhuma data de cronograma definida para este curso.</p>';
                 
                 // Resetando para a aba de detalhes
@@ -673,7 +690,7 @@
                      document.getElementById('expanded-calendar-title').textContent = `${monthNames[month]} ${year}`;
 
                      const grid = document.getElementById('expanded-calendar-grid');
-                     grid.innerHTML = ''; // Limpa o grid
+                     grid.innerHTML = ''; 
 
                      const firstDay = new Date(year, month, 1);
                      const lastDay = new Date(year, month + 1, 0);
@@ -683,6 +700,16 @@
                      if (endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
                      
                      const { cursos, formacoes } = getYearFilteredData();
+                     const allEventsForMonth = [];
+
+                     cursos.forEach(c => {
+                         if (c.pilotoInicio && c.pilotoFim) allEventsForMonth.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
+                         if (c.formacaoInicio && c.formacaoFim) allEventsForMonth.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
+                     });
+                     formacoes.forEach(f => {
+                         const cursoOriginal = cursos.find(c => c.nome === f.curso);
+                         if (cursoOriginal && f.inicio && f.fim) allEventsForMonth.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
+                     });
                      
                      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                          const cell = document.createElement('div');
@@ -693,19 +720,9 @@
                          if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
                          cell.appendChild(dayNumber);
                          
-                         const todaysEvents = [];
-                         cursos.forEach(c => {
-                             if (c.pilotoInicio && d >= c.pilotoInicio && d <= c.pilotoFim) todaysEvents.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
-                             if (c.formacaoInicio && d >= c.formacaoInicio && d <= c.formacaoFim) todaysEvents.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
-                         });
-                         formacoes.forEach(f => {
-                             const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                             if (cursoOriginal && f.inicio && d >= f.inicio && d <= f.fim) todaysEvents.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
-                         });
-
-                         let eventTop = 35; // Posição inicial dos eventos na célula
-                         todaysEvents.forEach(event => {
-                             if (d.getTime() === event.start.getTime() || (d.getDay() === 0 && d > event.start)) {
+                         let eventTop = 35;
+                         allEventsForMonth.forEach(event => {
+                             if (d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0)) {
                                  const eventDiv = document.createElement('div');
                                  const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
                                  const width = Math.min(diffDays, 7 - d.getDay());
@@ -716,7 +733,7 @@
                                  eventDiv.style.top = `${eventTop}px`;
                                  eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
                                  cell.appendChild(eventDiv);
-                                 eventTop += 22; // Incrementa a posição para o próximo evento
+                                 eventTop += 22;
                              }
                          });
 
@@ -761,15 +778,13 @@
                     
                     const pedagogoFilteredCursos = (activePedagogoFilter === 'All') ? yearFilteredCursos : yearFilteredCursos.filter(c => c.pedagogo === activePedagogoFilter);
                     const pedagogoFilteredAtividades = (activePedagogoFilter === 'All') ? yearFilteredAtividades : yearFilteredAtividades.filter(a => a.responsavel === activePedagogoFilter);
+                    const pedagogoFilteredFormacoes = (activePedagogoFilter === 'All') ? yearFilteredFormacoes 
+                        : yearFilteredFormacoes.filter(f => {
+                            const cursoOriginal = yearFilteredCursos.find(c => c.nome === f.curso);
+                            return cursoOriginal && cursoOriginal.pedagogo === activePedagogoFilter;
+                        });
 
-                    let formacoesCount = pedagogoFilteredCursos.filter(c => c.formacaoInicio).length;
-                    const otherFormationsCount = yearFilteredFormacoes.filter(f => {
-                         const pedagogoDoCurso = yearFilteredCursos.find(c => c.nome === f.curso)?.pedagogo;
-                         return (activePedagogoFilter === 'All') ? true : pedagogoDoCurso === activePedagogoFilter;
-                    }).length;
-                    formacoesCount += otherFormationsCount;
-
-                    document.getElementById('pedagogo-card-formacao').textContent = formacoesCount;
+                    document.getElementById('pedagogo-card-formacao').textContent = pedagogoFilteredCursos.filter(c => c.formacaoInicio).length + pedagogoFilteredFormacoes.length;
                     document.getElementById('pedagogo-card-piloto').textContent = pedagogoFilteredCursos.filter(c => c.pilotoInicio).length;
 
                     const otherActivitiesContainer = document.getElementById('pedagogo-outras-atividades');
@@ -778,7 +793,7 @@
                         .map(([name, count]) => `<div class="flex justify-between items-baseline"><p class="font-bold text-gray-800">${name}</p><p class="text-xl font-bold text-gray-600">${count}</p></div>`).join('<hr class="my-2">') 
                         || '<p class="text-center text-gray-500 mt-4">Nenhuma atividade neste período.</p>';
                     
-                    renderPedagogoCalendar(pedagogoFilteredCursos, yearFilteredFormacoes);
+                    renderPedagogoCalendar(pedagogoFilteredCursos, pedagogoFilteredFormacoes);
                 };
                 window.updatePedagogoPage = renderPedagogoPageContent;
                 
@@ -800,6 +815,16 @@
                     const startDate = new Date(firstDay); startDate.setDate(startDate.getDate() - firstDay.getDay());
                     const endDate = new Date(lastDay); if(endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
+                    const allEventsForMonth = [];
+                    cursos.forEach(c => {
+                        if (c.pilotoInicio && c.pilotoFim) allEventsForMonth.push({type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800'});
+                        if (c.formacaoInicio && c.formacaoFim) allEventsForMonth.push({type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800'});
+                    });
+                    formacoes.forEach(f => {
+                        const cursoOriginal = cursos.find(c => c.nome === f.curso);
+                        if(cursoOriginal && f.inicio && f.fim) allEventsForMonth.push({type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800'});
+                    });
+
                     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                         const cell = document.createElement('div');
                         cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
@@ -809,19 +834,9 @@
                         if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
                         cell.appendChild(dayNumber);
                         
-                        const todaysEvents = [];
-                        cursos.forEach(c => {
-                            if (c.pilotoInicio && d >= c.pilotoInicio && d <= c.pilotoFim) todaysEvents.push({type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800'});
-                            if (c.formacaoInicio && d >= c.formacaoInicio && d <= c.formacaoFim) todaysEvents.push({type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800'});
-                        });
-                        formacoes.forEach(f => {
-                            const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                            if(cursoOriginal && f.inicio && d >= f.inicio && d <= f.fim) todaysEvents.push({type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800'});
-                        });
-
-                        let eventTop = 35; // Posição inicial dos eventos na célula
-                        todaysEvents.forEach(event => {
-                           if (d.getTime() === event.start.getTime() || (d.getDay() === 0 && d > event.start)) {
+                        let eventTop = 35;
+                        allEventsForMonth.forEach(event => {
+                           if (d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0)) {
                                const eventDiv = document.createElement('div');
                                const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
                                const width = Math.min(diffDays, 7 - d.getDay());
