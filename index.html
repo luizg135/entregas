@@ -12,307 +12,305 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
 
     <script>
-        // Configurando a cor personalizada para o Tailwind
         tailwind.config = {
             theme: {
                 extend: {
-                    colors: {
-                        'brand-green': '#235937',
-                    }
+                    colors: { 'brand-green': '#235937' }
                 }
             }
         }
     </script>
     <style>
-        /* Estilos Globais para Layout Fluido */
-        html { font-size: 16px; }
-        @media (max-width: 1920px) { html { font-size: 0.833vw; } }
-        @media (max-width: 1000px) { html { font-size: 8.5px; } }
-        @media (min-width: 2400px) { html { font-size: 18px; } }
-
-        body { font-family: 'Inter', sans-serif; width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #f9fafb; }
-        main { position: relative; margin-top: 7rem; height: calc(100vh - 7rem); }
-        .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 0 2rem 1.5rem 2rem; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
+        /* Estilo para viewport scaling */
+        html, body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Previne scrollbars indesejadas */
+            background-color: #f0f2f5;
+        }
+        #app-container {
+            width: 1920px;
+            height: 1080px;
+            transform-origin: top left;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        body { font-family: 'Inter', sans-serif; }
+        main { position: relative; margin-top: 112px; height: calc(1080px - 112px); }
+        .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 0 32px 24px 32px; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
         .page-content.active { opacity: 1; pointer-events: auto; }
         #page-relatorio.page-content.active { overflow: hidden; }
 
-        /* Side Menu */
         #sideMenu { background-color: #235937; top: 50%; transform: translate(-100%, -50%); transition: transform 0.3s ease-in-out; }
         #sideMenu.show { transform: translate(0, -50%); }
         #sideMenu a:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.1); }
         .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
         
-        /* Tabela */
         .table-scroll-container { flex-grow: 1; position: relative; overflow-y: auto; }
         .table-scroll-container table { position: absolute; width: 100%; }
         
-        /* Modal de Filtro (Novo Estilo) */
-        .filter-pill { padding: 0.5rem 1.25rem; border-radius: 9999px; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none; }
+        .filter-pill { padding: 8px 20px; border-radius: 9999px; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none; }
         .filter-pill:hover { background-color: #e5e7eb; }
         .filter-pill.active { background-color: #235937; color: white; border-color: #235937; transform: scale(1.05); }
 
-        /* Abas do Modal de Detalhes */
-        .modal-tab { padding: 0.5rem 1rem; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .modal-tab { padding: 8px 16px; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
         .modal-tab:hover { color: #d1d5db; }
         .modal-tab.active { color: white; border-bottom-color: white; }
 
-        /* Animação de Loading */
         #loading-overlay { transition: opacity 0.3s ease-in-out; }
-        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-left-color: #235937; }
+        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: #235937; }
         
-        /* Badge de filtro verde */
         #filter-badge { background-color: #235937; }
     </style>
 </head>
-<body class="text-gray-800 bg-gray-50">
-
+<body>
     <div id="loading-overlay" class="fixed inset-0 bg-gray-100 z-[100] flex flex-col items-center justify-center">
         <div class="spinner h-12 w-12 animate-spin rounded-full"></div>
         <p class="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
     </div>
 
-    <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
-        <img src="Sistema-FAEP-SENAR-PR.png" alt="Logotipo" class="h-12 w-auto">
-        <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-            <h1 id="main-title" class="text-2xl font-bold text-brand-green whitespace-nowrap">ACOMPANHAMENTO DE ENTREGAS</h1>
-        </div>
-        <div class="flex items-center space-x-4">
-             <div class="relative">
-                <select id="year-selector" class="w-32 bg-white border border-gray-200 text-gray-700 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow appearance-none text-center font-semibold">
-                    </select>
+    <div id="app-container">
+        <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
+            <img src="Sistema-FAEP-SENAR-PR.png" alt="Logotipo" class="h-12 w-auto">
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <h1 id="main-title" class="text-2xl font-bold text-brand-green whitespace-nowrap">ACOMPANHAMENTO DE ENTREGAS</h1>
             </div>
-            <div class="relative">
+            <div class="flex items-center space-x-4">
                 <div class="relative">
-                    <span class="absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></span>
-                    <input type="text" id="search-input" placeholder="Buscar..." class="w-48 md:w-64 bg-white border border-gray-200 text-gray-700 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow" autocomplete="off">
+                    <select id="year-selector" class="w-32 bg-white border border-gray-200 text-gray-700 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow appearance-none text-center font-semibold"></select>
                 </div>
-                <div id="search-suggestions" class="hidden absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl z-20 border border-gray-200 max-h-60 overflow-y-auto"></div>
-            </div>
-            <div class="relative">
-                <button id="notification-toggle" class="relative p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                    <span id="notification-badge" class="hidden absolute top-2 right-2 block h-2 w-2 rounded-full bg-brand-green ring-1 ring-white"></span>
-                </button>
-                <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 border border-gray-200">
-                    <div class="p-3 font-bold text-gray-800 text-sm border-b">Notificações</div>
-                    <div class="py-1" id="notification-list"></div>
-                    <div class="p-2 border-t text-center bg-gray-50 rounded-b-lg"><a href="#" class="text-sm text-brand-green font-semibold hover:underline">Ver todas</a></div>
+                <div class="relative">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></span>
+                        <input type="text" id="search-input" placeholder="Buscar..." class="w-48 md:w-64 bg-white border border-gray-200 text-gray-700 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow" autocomplete="off">
+                    </div>
+                    <div id="search-suggestions" class="hidden absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl z-20 border border-gray-200 max-h-60 overflow-y-auto"></div>
+                </div>
+                <div class="relative">
+                    <button id="notification-toggle" class="relative p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                        <span id="notification-badge" class="hidden absolute top-2 right-2 block h-2 w-2 rounded-full bg-brand-green ring-1 ring-white"></span>
+                    </button>
+                    <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 border border-gray-200">
+                        <div class="p-3 font-bold text-gray-800 text-sm border-b">Notificações</div>
+                        <div class="py-1" id="notification-list"></div>
+                        <div class="p-2 border-t text-center bg-gray-50 rounded-b-lg"><a href="#" class="text-sm text-brand-green font-semibold hover:underline">Ver todas</a></div>
+                    </div>
+                </div>
+                <div class="relative">
+                    <button id="menu-toggle" class="p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
+                    <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-20 py-1 border border-gray-200">
+                        <a href="https://www.sistemafaep.org.br/cursos-busca/" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>CATÁLOGO</a>
+                        <a href="https://app.powerbi.com/view?r=eyJrIjoiMzIwZDk3OTctY2QxNC00ZGY5LThmNDItNWMzYjBiMzU1OGY5IiwidCI6IjNmY2UyOTIxLTI0ZTgtNDhhOC1hOTI2LWJiMzhlZjkzOTY0MiJ9" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m-6 3l6-3m0 0l6 3m-6-3v10" /></svg>MAPA PARA OFÍCIOS</a>
+                    </div>
                 </div>
             </div>
-            <div class="relative">
-                <button id="menu-toggle" class="p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                </button>
-                <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-20 py-1 border border-gray-200">
-                    <a href="https://www.sistemafaep.org.br/cursos-busca/" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>CATÁLOGO</a>
-                    <a href="https://app.powerbi.com/view?r=eyJrIjoiMzIwZDk3OTctY2QxNC00ZGY5LThmNDItNWMzYjBiMzU1OGY5IiwidCI6IjNmY2UyOTIxLTI0ZTgtNDhhOC1hOTI2LWJiMzhlZjkzOTY0MiJ9" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m-6 3l6-3m0 0l6 3m-6-3v10" /></svg>MAPA PARA OFÍCIOS</a>
+        </header>
+
+        <nav id="sideMenu" class="fixed left-0 w-16 text-white z-20 shadow-lg flex flex-col items-center justify-center space-y-6 p-4 rounded-r-3xl">
+            <a href="#" data-page="dashboard" class="page-link block p-3 rounded-xl transition-all duration-200" title="Início"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg></a>
+            <a href="#" data-page="relatorio" class="page-link block p-3 rounded-xl transition-all duration-200" title="Relatório"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></a>
+            <a href="#" data-page="pedagogo" class="page-link block p-3 rounded-xl transition-all duration-200" title="Pedagogo"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 8.48L5.53 8.32 12 5.21l6.47 3.11L12 11.48zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg></a>
+        </nav>
+        
+        <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg relative transform transition-all duration-300 scale-95 opacity-0 overflow-hidden" id="modal-content">
+                <div id="modal-header" class="p-6">
+                    <div class="flex justify-between items-start">
+                        <div class="flex items-center gap-4">
+                            <div id="modal-stage-indicator" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"></div>
+                            <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+                        </div>
+                        <button id="modal-close-btn" class="text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    </div>
+                    <div id="modal-tabs" class="mt-4 flex items-center border-b border-white/20">
+                        <button data-tab="details" class="modal-tab active">Detalhes</button>
+                        <button data-tab="schedule" class="modal-tab">Cronograma</button>
+                    </div>
+                </div>
+                <div class="p-8 max-h-[60vh] overflow-y-auto">
+                    <div id="modal-tab-content-details" class="space-y-5">
+                        <div class="border-b border-gray-200 pb-5">
+                            <div class="space-y-4 text-gray-700">
+                                <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Nível:</strong><span id="modal-level" class="font-semibold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-md text-sm"></span></div>
+                                <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Lançamento:</strong><span id="modal-date" class="text-gray-800 font-medium"></span></div>
+                            </div>
+                        </div>
+                        <div class="border-b border-gray-200 pb-5">
+                            <div class="flex items-start"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Responsáveis:</strong><div class="text-gray-800 font-medium leading-relaxed"><span id="modal-tech"></span> <span class="text-xs text-gray-500">(Técnico)</span><br><span id="modal-pedagogue"></span> <span class="text-xs text-gray-500">(Pedagogo)</span></div></div>
+                        </div>
+                        <div><div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Etapa Atual:</strong><span id="modal-stage" class="text-gray-800 font-medium"></span></div></div>
+                    </div>
+                    <div id="modal-tab-content-schedule" class="hidden space-y-5"></div>
                 </div>
             </div>
         </div>
-    </header>
 
-    <nav id="sideMenu" class="fixed left-0 w-16 text-white z-20 shadow-lg flex flex-col items-center justify-center space-y-6 p-4 rounded-r-3xl">
-        <a href="#" data-page="dashboard" class="page-link block p-3 rounded-xl transition-all duration-200" title="Início"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg></a>
-        <a href="#" data-page="relatorio" class="page-link block p-3 rounded-xl transition-all duration-200" title="Relatório"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></a>
-        <a href="#" data-page="pedagogo" class="page-link block p-3 rounded-xl transition-all duration-200" title="Pedagogo"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 8.48L5.53 8.32 12 5.21l6.47 3.11L12 11.48zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg></a>
-    </nav>
-    
-    <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
-        <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg relative transform transition-all duration-300 scale-95 opacity-0 overflow-hidden" id="modal-content">
-            <div id="modal-header" class="p-6">
-                 <div class="flex justify-between items-start">
-                    <div class="flex items-center gap-4">
-                        <div id="modal-stage-indicator" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"></div>
-                        <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+        <main>
+            <div id="page-dashboard" class="flex flex-col h-full gap-4 page-content">
+                <div class="flex items-start space-x-6 flex-shrink-0">
+                    <div class="bg-white rounded-2xl shadow p-4 w-48 h-24 flex-shrink-0 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-xs font-semibold text-gray-600 text-center">META DE ENTREGAS</h3><p id="dashboard-meta-entregas" class="text-3xl font-bold text-brand-green mt-1">0</p>
                     </div>
-                    <button id="modal-close-btn" class="text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (CURSOS NOVOS)</h3>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="dashboard-progress-novos" class="bg-brand-green h-2.5 rounded-full" style="width: 0%"></div></div>
+                        <p id="dashboard-label-novos" class="text-right text-sm font-semibold text-gray-500 mt-1">0/0</p>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (ATUALIZAÇÃO)</h3>
+                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="dashboard-progress-atualizacoes" class="bg-brand-green h-2.5 rounded-full" style="width: 0%"></div></div>
+                        <p id="dashboard-label-atualizacoes" class="text-right text-sm font-semibold text-gray-500 mt-1">0/0</p>
+                    </div>
                 </div>
-                <div id="modal-tabs" class="mt-4 flex items-center border-b border-white/20">
-                    <button data-tab="details" class="modal-tab active">Detalhes</button>
-                    <button data-tab="schedule" class="modal-tab">Cronograma</button>
-                </div>
-            </div>
-            <div class="p-8 max-h-[60vh] overflow-y-auto">
-                <div id="modal-tab-content-details" class="space-y-5">
-                    <div class="border-b border-gray-200 pb-5">
-                        <div class="space-y-4 text-gray-700">
-                            <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Nível:</strong><span id="modal-level" class="font-semibold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-md text-sm"></span></div>
-                            <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Lançamento:</strong><span id="modal-date" class="text-gray-800 font-medium"></span></div>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-grow">
+                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">ETAPA ATUAL DOS CURSOS</h3>
+                        <div class="relative flex-grow"><canvas id="barChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PLANEJAMENTO DE ENTREGAS</h3>
+                        <div class="relative flex-grow"><canvas id="lineChart"></canvas></div>
+                    </div>
+                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
+                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">NÍVEL DOS CURSOS</h3>
+                        <div class="relative flex-grow flex items-center justify-center"><canvas id="donutChart"></canvas></div>
+                    </div>
+                    <div class="lg:col-span-3 bg-white rounded-2xl shadow p-6 flex flex-col">
+                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PRÓXIMOS LANÇAMENTOS</h3>
+                        <div id="carousel-container" class="relative group overflow-hidden rounded-lg flex-grow">
+                            <div id="slides-container" class="flex transition-transform duration-500 ease-in-out h-full"></div>
+                            <button id="prev-btn" class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
+                            <button id="next-btn" class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
                         </div>
                     </div>
-                    <div class="border-b border-gray-200 pb-5">
-                        <div class="flex items-start"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Responsáveis:</strong><div class="text-gray-800 font-medium leading-relaxed"><span id="modal-tech"></span> <span class="text-xs text-gray-500">(Técnico)</span><br><span id="modal-pedagogue"></span> <span class="text-xs text-gray-500">(Pedagogo)</span></div></div>
-                    </div>
-                    <div><div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Etapa Atual:</strong><span id="modal-stage" class="text-gray-800 font-medium"></span></div></div>
-                </div>
-                <div id="modal-tab-content-schedule" class="hidden space-y-5">
-                    </div>
-            </div>
-        </div>
-    </div>
-
-    <main class="w-full relative">
-        
-        <div id="page-dashboard" class="flex flex-col h-full gap-4 page-content">
-            <div class="flex items-start space-x-6 flex-shrink-0">
-                <div class="bg-white rounded-2xl shadow p-4 w-48 h-24 flex-shrink-0 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                    <h3 class="text-xs font-semibold text-gray-600 text-center">META DE ENTREGAS</h3><p id="dashboard-meta-entregas" class="text-3xl font-bold text-brand-green mt-1">0</p>
-                </div>
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                    <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (CURSOS NOVOS)</h3>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="dashboard-progress-novos" class="bg-brand-green h-2.5 rounded-full" style="width: 0%"></div></div>
-                    <p id="dashboard-label-novos" class="text-right text-sm font-semibold text-gray-500 mt-1">0/0</p>
-                </div>
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                    <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (ATUALIZAÇÃO)</h3>
-                    <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="dashboard-progress-atualizacoes" class="bg-brand-green h-2.5 rounded-full" style="width: 0%"></div></div>
-                    <p id="dashboard-label-atualizacoes" class="text-right text-sm font-semibold text-gray-500 mt-1">0/0</p>
                 </div>
             </div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-grow">
-                <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">ETAPA ATUAL DOS CURSOS</h3>
-                    <div class="relative flex-grow"><canvas id="barChart"></canvas></div>
+            
+            <div id="page-relatorio" class="flex flex-col h-full gap-4 page-content">
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 flex-shrink-0">
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">TOTAL</h3><p id="card-total" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">NOVOS</h3><p id="card-novos" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ATUALIZAÇÕES</h3><p id="card-atualizacoes" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ENTREGUES</h3><p id="card-entregues" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
+                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">RESTANTES</h3><p id="card-restantes" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
                 </div>
-                <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PLANEJAMENTO DE ENTREGAS</h3>
-                    <div class="relative flex-grow"><canvas id="lineChart"></canvas></div>
-                </div>
-                <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">NÍVEL DOS CURSOS</h3>
-                    <div class="relative flex-grow flex items-center justify-center"><canvas id="donutChart"></canvas></div>
-                </div>
-                <div class="lg:col-span-3 bg-white rounded-2xl shadow p-6 flex flex-col">
-                    <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PRÓXIMOS LANÇAMENTOS</h3>
-                    <div id="carousel-container" class="relative group overflow-hidden rounded-lg flex-grow">
-                        <div id="slides-container" class="flex transition-transform duration-500 ease-in-out h-full"></div>
-                        <button id="prev-btn" class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                        <button id="next-btn" class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="page-relatorio" class="flex flex-col h-full gap-4 page-content">
-            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 flex-shrink-0" id="report-cards">
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">TOTAL</h3><p id="card-total" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">NOVOS</h3><p id="card-novos" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ATUALIZAÇÕES</h3><p id="card-atualizacoes" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ENTREGUES</h3><p id="card-entregues" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">RESTANTES</h3><p id="card-restantes" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-            </div>
-            <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-grow">
-                <div class="xl:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
-                    <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                         <h3 class="text-lg font-bold text-brand-green">ACOMPANHAMENTO DETALHADO</h3>
-                         <button id="filter-table-btn" class="relative text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
-                             <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
-                             <span id="filter-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 text-white text-xs font-bold rounded-full flex items-center justify-center"></span>
-                         </button>
-                    </div>
-                    <div class="table-scroll-container">
-                        <table class="w-full text-sm text-left text-gray-600">
-                            <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0 z-10">
-                                <tr>
-                                    <th scope="col" class="px-4 py-3"></th>
-                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="nome">Curso</th>
-                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="nivel">Nível</th>
-                                    <th scope="col" class="px-4 py-3">Tipo</th>
-                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="pedagogo">Pedagogo</th>
-                                    <th scope="col" class="px-4 py-3 sortable-header" data-sort="dataDisponivel">Disponível em</th>
-                                    <th scope="col" class="px-4 py-3">Etapa Atual</th>
-                                </tr>
-                            </thead>
-                            <tbody id="report-table-body"></tbody>
-                        </table>
-                    </div>
-                </div>
-                <div class="flex flex-col gap-4">
-                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green flex-grow">
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-grow">
+                    <div class="xl:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
                         <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h3 class="text-lg font-bold text-brand-green">CALENDÁRIO</h3>
-                            <button id="expand-calendar-btn" class="text-sm font-semibold text-brand-green hover:underline">Expandir</button>
+                            <h3 class="text-lg font-bold text-brand-green">ACOMPANHAMENTO DETALHADO</h3>
+                            <button id="filter-table-btn" class="relative text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
+                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                                <span id="filter-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 text-white text-xs font-bold rounded-full flex items-center justify-center"></span>
+                            </button>
                         </div>
-                        <div id="calendar-container" class="flex-grow"></div>
-                    </div>
-                     <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
-                         <div id="kpi-speedometer-container"></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="page-pedagogo" class="page-content flex flex-col h-full gap-4">
-             <div id="pedagogo-filter-container" class="flex justify-center gap-4 flex-shrink-0">
-                </div>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow">
-                <div class="md:col-span-1 flex flex-col gap-4">
-                    <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-lg font-bold text-brand-green mb-4 text-center">ACOMPANHAMENTOS</h3>
-                        <div class="space-y-4 text-center">
-                            <div>
-                                <p class="font-bold text-gray-800 text-lg">Formação</p>
-                                <p id="pedagogo-card-formacao" class="text-2xl font-bold text-gray-600">0</p>
-                            </div>
-                            <hr>
-                            <div>
-                                <p class="font-bold text-gray-800 text-lg">Piloto</p>
-                                <p id="pedagogo-card-piloto" class="text-2xl font-bold text-gray-600">0</p>
-                            </div>
+                        <div class="table-scroll-container">
+                            <table class="w-full text-sm text-left text-gray-600">
+                                <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0 z-10">
+                                    <tr>
+                                        <th scope="col" class="px-4 py-3"></th>
+                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="nome">Curso</th>
+                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="nivel">Nível</th>
+                                        <th scope="col" class="px-4 py-3">Tipo</th>
+                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="pedagogo">Pedagogo</th>
+                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="dataDisponivel">Disponível em</th>
+                                        <th scope="col" class="px-4 py-3">Etapa Atual</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="report-table-body"></tbody>
+                            </table>
                         </div>
                     </div>
-                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col flex-grow transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green overflow-hidden">
-                        <h3 class="text-lg font-bold text-brand-green mb-4 text-center">OUTRAS ATIVIDADES</h3>
-                        <div class="space-y-2 overflow-y-auto pr-2" id="pedagogo-outras-atividades"></div>
+                    <div class="flex flex-col gap-4">
+                        <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green flex-grow">
+                            <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                                <h3 class="text-lg font-bold text-brand-green">CALENDÁRIO</h3>
+                                <button id="expand-calendar-btn" class="text-sm font-semibold text-brand-green hover:underline">Expandir</button>
+                            </div>
+                            <div id="calendar-container" class="flex-grow"></div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
+                            <div id="kpi-speedometer-container"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="md:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
-                     <div id="pedagogo-calendar-container" class="flex flex-col h-full"></div>
-                </div>
             </div>
-        </div>
-    </main>
 
-    <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-        <div id="calendar-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-6xl h-[90vh] relative transform transition-all duration-300 scale-95 opacity-0 flex flex-col p-6">
-            <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                <div class="flex items-center space-x-4">
-                     <button id="expanded-calendar-prev-month" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                    <h2 id="expanded-calendar-title" class="text-2xl font-bold text-brand-green text-center w-48"></h2>
-                     <button id="expanded-calendar-next-month" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+            <div id="page-pedagogo" class="page-content flex flex-col h-full gap-4">
+                <div id="pedagogo-filter-container" class="flex justify-center gap-4 flex-shrink-0"></div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow">
+                    <div class="md:col-span-1 flex flex-col gap-4">
+                        <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
+                            <h3 class="text-lg font-bold text-brand-green mb-4 text-center">ACOMPANHAMENTOS</h3>
+                            <div class="space-y-4 text-center">
+                                <div>
+                                    <p class="font-bold text-gray-800 text-lg">Formação</p>
+                                    <p id="pedagogo-card-formacao" class="text-2xl font-bold text-gray-600">0</p>
+                                </div>
+                                <hr>
+                                <div>
+                                    <p class="font-bold text-gray-800 text-lg">Piloto</p>
+                                    <p id="pedagogo-card-piloto" class="text-2xl font-bold text-gray-600">0</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white rounded-2xl shadow p-6 flex flex-col flex-grow transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green overflow-hidden">
+                            <h3 class="text-lg font-bold text-brand-green mb-4 text-center">OUTRAS ATIVIDADES</h3>
+                            <div class="space-y-2 overflow-y-auto pr-2" id="pedagogo-outras-atividades"></div>
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
+                        <div id="pedagogo-calendar-container" class="flex flex-col h-full"></div>
+                    </div>
                 </div>
-                <button id="calendar-modal-close-btn" class="text-gray-500 hover:text-gray-800 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg></button>
             </div>
-            <div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0">
-                <div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div>
+        </main>
+
+        <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+            <div id="calendar-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-6xl h-[90vh] relative transform transition-all duration-300 scale-95 opacity-0 flex flex-col p-6">
+                <div class="flex justify-between items-center mb-4 flex-shrink-0">
+                    <div class="flex items-center space-x-4">
+                        <button id="expanded-calendar-prev-month" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
+                        <h2 id="expanded-calendar-title" class="text-2xl font-bold text-brand-green text-center w-48"></h2>
+                        <button id="expanded-calendar-next-month" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
+                    </div>
+                    <button id="calendar-modal-close-btn" class="text-gray-500 hover:text-gray-800 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg></button>
+                </div>
+                <div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0">
+                    <div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div>
+                </div>
+                <div id="expanded-calendar-grid" class="grid grid-cols-7 grid-rows-6 flex-grow gap-1 overflow-y-auto pr-2"></div>
             </div>
-            <div id="expanded-calendar-grid" class="grid grid-cols-7 grid-rows-6 flex-grow gap-1 overflow-y-auto pr-2"></div>
         </div>
-    </div>
-    
-    <div id="filter-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-        <div id="filter-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative transform transition-all duration-300 scale-95 opacity-0 p-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-brand-green">Filtrar Cursos</h2>
-                <button id="filter-modal-close-btn" class="text-gray-400 hover:text-gray-800"><svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
-            </div>
-            <div class="space-y-6">
-                <div>
-                    <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Etapa</h3>
-                    <div id="filter-stage-options" class="flex flex-wrap gap-3"></div>
+        
+        <div id="filter-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
+            <div id="filter-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative transform transition-all duration-300 scale-95 opacity-0 p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-brand-green">Filtrar Cursos</h2>
+                    <button id="filter-modal-close-btn" class="text-gray-400 hover:text-gray-800"><svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
                 </div>
-                <div>
-                    <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Técnico</h3>
-                    <div id="filter-tech-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
+                <div class="space-y-6">
+                    <div>
+                        <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Etapa</h3>
+                        <div id="filter-stage-options" class="flex flex-wrap gap-3"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Técnico</h3>
+                        <div id="filter-tech-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
+                    </div>
+                    <div>
+                        <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Pedagogo</h3>
+                        <div id="filter-pedagogue-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
+                    </div>
                 </div>
-                <div>
-                    <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Pedagogo</h3>
-                    <div id="filter-pedagogue-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
+                <div class="flex justify-end gap-4 mt-8 pt-6 border-t">
+                    <button id="filter-clear-btn" class="text-sm font-semibold text-gray-600 hover:underline">Limpar Filtros</button>
+                    <button id="filter-apply-btn" class="bg-brand-green text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-colors">Aplicar</button>
                 </div>
-            </div>
-            <div class="flex justify-end gap-4 mt-8 pt-6 border-t">
-                <button id="filter-clear-btn" class="text-sm font-semibold text-gray-600 hover:underline">Limpar Filtros</button>
-                <button id="filter-apply-btn" class="bg-brand-green text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-colors">Aplicar</button>
             </div>
         </div>
     </div>
@@ -320,6 +318,23 @@
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
             
+            // --- SCALING SCRIPT ---
+            function scaleApp() {
+                const app = document.getElementById('app-container');
+                const baseWidth = 1920;
+                const baseHeight = 1080;
+                
+                const scaleX = window.innerWidth / baseWidth;
+                const scaleY = window.innerHeight / baseHeight;
+                const scale = Math.min(scaleX, scaleY);
+                
+                app.style.transform = `scale(${scale})`;
+                app.style.left = `${(window.innerWidth - baseWidth * scale) / 2}px`;
+                app.style.top = `${(window.innerHeight - baseHeight * scale) / 2}px`;
+            }
+            window.addEventListener('resize', scaleApp);
+            
+            // --- APP LOGIC ---
             let apiData = null;
             let chartInstances = {};
             const API_URL = "https://entregas-api.vercel.app/api/dados";
@@ -388,7 +403,7 @@
                 }
 
                 if(allFormationsForCourse.length > 0) {
-                    scheduleHtml += `<div class="pt-5"><strong class="font-semibold text-gray-500 mb-2 block border-b pb-2">Formação de Instrutores</strong>`;
+                    scheduleHtml += `<div class="${scheduleHtml ? 'pt-5' : ''}"><strong class="font-semibold text-gray-500 mb-2 block border-b pb-2">Formação de Instrutores</strong>`;
                     allFormationsForCourse.forEach((formacao, index) => {
                         if(formacao.inicio && formacao.fim){
                              scheduleHtml += `<div class="text-gray-800 font-medium mt-2 ${index < allFormationsForCourse.length - 1 ? 'pb-2 mb-2 border-b' : ''}">De: ${formatDate(formacao.inicio)}<br>Até: ${formatDate(formacao.fim)}</div>`;
@@ -570,7 +585,7 @@
                          icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
                          icon.setAttribute('class', 'w-4 h-4 inline-block ml-1'); icon.setAttribute('fill', 'none');
                          icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('stroke', 'currentColor');
-                         icon.innerHTML = currentSort.direction === 'asc' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
+                         icon.innerHTML = currentSort.direction === 'asc' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7 7" />';
                          header.appendChild(icon);
                     }
                 });
@@ -678,68 +693,85 @@
                     calendarModalContent.classList.add('scale-95', 'opacity-0');
                     setTimeout(() => calendarModal.classList.add('hidden'), 300);
                 };
+                
+                function getCalendarEvents(cursos, formacoes) {
+                    const allEvents = [];
+                    cursos.forEach(c => {
+                        if (c.pilotoInicio && c.pilotoFim) allEvents.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
+                        if (c.formacaoInicio && c.formacaoFim) allEvents.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
+                    });
+                    formacoes.forEach(f => {
+                        const cursoOriginal = cursos.find(c => c.nome === f.curso);
+                        if (cursoOriginal && f.inicio && f.fim) {
+                             const exists = allEvents.some(e => e.course.nome === cursoOriginal.nome && e.start.getTime() === f.inicio.getTime() && e.end.getTime() === f.fim.getTime());
+                             if(!exists) {
+                                allEvents.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
+                             }
+                        }
+                    });
+                    return allEvents;
+                }
+                
+                function renderCalendarGrid(gridElement, referenceDate, cursos, formacoes) {
+                    const month = referenceDate.getMonth();
+                    const year = referenceDate.getFullYear();
+                    gridElement.innerHTML = '';
+
+                    const firstDayOfMonth = new Date(year, month, 1);
+                    const lastDayOfMonth = new Date(year, month + 1, 0);
+
+                    const startDate = new Date(firstDayOfMonth);
+                    startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
+
+                    const endDate = new Date(lastDayOfMonth);
+                    if (endDate.getDay() !== 6) {
+                        endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+                    }
+
+                    const allEvents = getCalendarEvents(cursos, formacoes);
+
+                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                        const cell = document.createElement('div');
+                        cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
+                        const dayNumber = document.createElement('span');
+                        dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
+                        dayNumber.textContent = d.getDate();
+                        if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
+                        cell.appendChild(dayNumber);
+
+                        let eventTop = 35;
+                        allEvents.filter(event => d >= event.start && d <= event.end)
+                                 .filter(event => d.getTime() === event.start.getTime() || d.getDay() === 0)
+                                 .forEach(event => {
+                            const eventDiv = document.createElement('div');
+                            const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
+                            const width = Math.min(diffDays, 7 - d.getDay());
+
+                            eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
+                            eventDiv.style.width = `calc(${width * 100}% - 4px)`;
+                            eventDiv.style.marginLeft = '2px';
+                            eventDiv.style.top = `${eventTop}px`;
+                            eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
+                            cell.appendChild(eventDiv);
+                            eventTop += 22;
+                        });
+                        gridElement.appendChild(cell);
+                    }
+                }
 
                 const renderExpandedCalendar = () => {
-                     const month = expandedCalendarDate.getMonth(), year = expandedCalendarDate.getFullYear();
+                     const month = expandedCalendarDate.getMonth();
+                     const year = expandedCalendarDate.getFullYear();
                      const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
                      document.getElementById('expanded-calendar-title').textContent = `${monthNames[month]} ${year}`;
-
-                     const grid = document.getElementById('expanded-calendar-grid');
-                     grid.innerHTML = ''; 
-
-                     const firstDayOfMonth = new Date(year, month, 1);
-                     const lastDayOfMonth = new Date(year, month + 1, 0);
-                     const startDate = new Date(firstDayOfMonth);
-                     startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
-                     const endDate = new Date(lastDayOfMonth);
-                     if (endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-                     
                      const { cursos, formacoes } = getYearFilteredData();
-                     const allEventsForMonth = [];
-                     
-                     cursos.forEach(c => {
-                         if (c.pilotoInicio && c.pilotoFim) allEventsForMonth.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
-                         if (c.formacaoInicio && c.formacaoFim) allEventsForMonth.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
-                     });
-                     formacoes.forEach(f => {
-                         const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                         if (cursoOriginal && f.inicio && f.fim) allEventsForMonth.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
-                     });
-                     
-                     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                         const cell = document.createElement('div');
-                         cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
-                         const dayNumber = document.createElement('span');
-                         dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
-                         dayNumber.textContent = d.getDate();
-                         if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
-                         cell.appendChild(dayNumber);
-                         
-                         let eventTop = 35;
-                         allEventsForMonth.forEach(event => {
-                             if (d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0)) {
-                                 const eventDiv = document.createElement('div');
-                                 const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
-                                 const width = Math.min(diffDays, 7 - d.getDay());
-                                 
-                                 eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
-                                 eventDiv.style.width = `calc(${width * 100}% - 4px)`;
-                                 eventDiv.style.marginLeft = '2px';
-                                 eventDiv.style.top = `${eventTop}px`;
-                                 eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
-                                 cell.appendChild(eventDiv);
-                                 eventTop += 22;
-                             }
-                         });
-                         grid.appendChild(cell);
-                     }
+                     renderCalendarGrid(document.getElementById('expanded-calendar-grid'), expandedCalendarDate, cursos, formacoes);
                 };
 
                 document.getElementById('expand-calendar-btn').addEventListener('click', openCalendarModal);
                 document.getElementById('calendar-modal-close-btn').addEventListener('click', closeCalendarModal);
                 document.getElementById('expanded-calendar-prev-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() - 1); renderExpandedCalendar(); };
                 document.getElementById('expanded-calendar-next-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() + 1); renderExpandedCalendar(); };
-
 
                 const renderSpeedometer = () => {
                     const container = document.getElementById('kpi-speedometer-container');
@@ -804,51 +836,7 @@
                     document.getElementById('ped-prev').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() - 1); renderPedagogoPageContent(); };
                     document.getElementById('ped-next').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() + 1); renderPedagogoPageContent(); };
                     
-                    const grid = document.getElementById('ped-grid');
-                    const firstDayOfMonth = new Date(year, month, 1);
-                    const lastDayOfMonth = new Date(year, month + 1, 0);
-                    const startDate = new Date(firstDayOfMonth);
-                    startDate.setDate(startDate.getDate() - firstDayOfMonth.getDay());
-                    const endDate = new Date(lastDayOfMonth);
-                    if (endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-
-                    const allEventsForMonth = [];
-                    cursos.forEach(c => {
-                        if (c.pilotoInicio && c.pilotoFim) allEventsForMonth.push({type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800'});
-                        if (c.formacaoInicio && c.formacaoFim) allEventsForMonth.push({type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800'});
-                    });
-                    formacoes.forEach(f => {
-                        const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                        if(cursoOriginal && f.inicio && f.fim) allEventsForMonth.push({type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800'});
-                    });
-
-                    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                        const cell = document.createElement('div');
-                        cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
-                        const dayNumber = document.createElement('span');
-                        dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
-                        dayNumber.textContent = d.getDate();
-                        if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
-                        cell.appendChild(dayNumber);
-                        
-                        let eventTop = 35;
-                        allEventsForMonth.forEach(event => {
-                           if (d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0)) {
-                               const eventDiv = document.createElement('div');
-                               const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
-                               const width = Math.min(diffDays, 7 - d.getDay());
-                               
-                               eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
-                               eventDiv.style.width = `calc(${width * 100}% - 4px)`;
-                               eventDiv.style.marginLeft = '2px';
-                               eventDiv.style.top = `${eventTop}px`;
-                               eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
-                               cell.appendChild(eventDiv);
-                               eventTop += 22;
-                           }
-                        });
-                        grid.appendChild(cell);
-                    }
+                    renderCalendarGrid(document.getElementById('ped-grid'), pedagogoCalendarDate, cursos, formacoes);
                 };
                 
                 document.querySelector('.pedagogo-filter-btn[data-pedagogo="All"]').classList.add('active');
@@ -880,6 +868,8 @@
                 initializePedagogoPage();
                 showPage('dashboard');
                 Chart.defaults.font.family = "'Inter', sans-serif";
+                
+                scaleApp(); // Initial scale
                 
                 loadingOverlay.style.opacity = '0';
                 setTimeout(() => loadingOverlay.style.display = 'none', 300);
