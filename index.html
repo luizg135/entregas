@@ -25,11 +25,41 @@
     </script>
     <style>
         /* Estilos Globais para Layout Fluido */
-        html {
-            font-size: 0.833vw;
-        }
-        @media (max-width: 1000px) { html { font-size: 8.33px; } }
-        @media (min-width: 2400px) { html { font-size: 20px; } }
+html {
+    /* Define um tamanho base ideal para monitores padrão (ex: Full HD).
+      Isso já serve como um "limite" para a maioria das telas.
+    */
+    font-size: 16px;
+}
+
+/* Para telas MENORES que um monitor Full HD, permitimos que a interface 
+  encolha de forma fluida para se adaptar.
+*/
+@media (max-width: 1920px) {
+    html {
+        font-size: 0.833vw;
+    }
+}
+
+/* Garante que em telas MUITO pequenas a fonte não fique ilegível.
+  Este é um piso de segurança.
+*/
+@media (max-width: 1000px) {
+    html {
+        font-size: 8.5px;
+    }
+}
+
+/*
+  Para telas gigantes (maiores que Full HD), aumentamos um pouco a fonte 
+  para não parecer pequena, mas a travamos em um valor fixo.
+  Isso impede o crescimento exagerado que você viu na tela de 60".
+*/
+@media (min-width: 2400px) {
+    html {
+        font-size: 18px; 
+    }
+}
 
         body {
             font-family: 'Inter', sans-serif;
