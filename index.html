@@ -25,129 +25,48 @@
     </script>
     <style>
         /* Estilos Globais para Layout Fluido */
-html {
-    /* Define um tamanho base ideal para monitores padrão (ex: Full HD).
-      Isso já serve como um "limite" para a maioria das telas.
-    */
-    font-size: 16px;
-}
+        html { font-size: 16px; }
+        @media (max-width: 1920px) { html { font-size: 0.833vw; } }
+        @media (max-width: 1000px) { html { font-size: 8.5px; } }
+        @media (min-width: 2400px) { html { font-size: 18px; } }
 
-/* Para telas MENORES que um monitor Full HD, permitimos que a interface 
-  encolha de forma fluida para se adaptar.
-*/
-@media (max-width: 1920px) {
-    html {
-        font-size: 0.833vw;
-    }
-}
+        body { font-family: 'Inter', sans-serif; width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #f9fafb; }
+        main { position: relative; margin-top: 7rem; height: calc(100vh - 7rem); }
+        .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 0 2rem 1.5rem 2rem; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
+        .page-content.active { opacity: 1; pointer-events: auto; }
+        #page-relatorio.page-content.active { overflow: hidden; }
 
-/* Garante que em telas MUITO pequenas a fonte não fique ilegível.
-  Este é um piso de segurança.
-*/
-@media (max-width: 1000px) {
-    html {
-        font-size: 8.5px;
-    }
-}
+        /* Side Menu */
+        #sideMenu { background-color: #235937; top: 50%; transform: translate(-100%, -50%); transition: transform 0.3s ease-in-out; }
+        #sideMenu.show { transform: translate(0, -50%); }
+        #sideMenu a:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.1); }
+        .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        
+        /* Tabela */
+        .table-scroll-container { flex-grow: 1; position: relative; overflow-y: auto; }
+        .table-scroll-container table { position: absolute; width: 100%; }
+        
+        /* Modal de Filtro (Novo Estilo) */
+        .filter-pill { padding: 0.5rem 1.25rem; border-radius: 9999px; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none; }
+        .filter-pill:hover { background-color: #e5e7eb; }
+        .filter-pill.active { background-color: #235937; color: white; border-color: #235937; transform: scale(1.05); }
 
-/*
-  Para telas gigantes (maiores que Full HD), aumentamos um pouco a fonte 
-  para não parecer pequena, mas a travamos em um valor fixo.
-  Isso impede o crescimento exagerado que você viu na tela de 60".
-*/
-@media (min-width: 2400px) {
-    html {
-        font-size: 18px; 
-    }
-}
+        /* Abas do Modal de Detalhes */
+        .modal-tab { padding: 0.5rem 1rem; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .modal-tab:hover { color: #d1d5db; }
+        .modal-tab.active { color: white; border-bottom-color: white; }
 
-        body {
-            font-family: 'Inter', sans-serif;
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background-color: #f9fafb;
-        }
-
-        main {
-            position: relative;
-            margin-top: 7rem;
-            height: calc(100vh - 7rem);
-        }
-
-        .page-content {
-            position: absolute;
-            top: 0;
-            right: 0;
-            bottom: 0;
-            left: 0;
-            padding: 0 2rem 1.5rem 2rem;
-            overflow-y: auto;
-            transition: opacity 0.3s ease-in-out;
-        }
-
-        #page-relatorio.page-content {
-            overflow: hidden;
-        }
-
-        #sideMenu {
-            background-color: #235937;
-            top: 50%;
-            transform: translate(-100%, -50%);
-            transition: transform 0.3s ease-in-out;
-        }
-        #sideMenu.show {
-            transform: translate(0, -50%);
-        }
-        #sideMenu a:hover {
-            background-color: rgba(255, 255, 255, 0.2);
-            transform: scale(1.1);
-        }
-        .line-clamp-2 {
-            overflow: hidden;
-            display: -webkit-box;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
-        }
-        .filter-option-label {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            border: 1px solid #d1d5db;
-            border-radius: 9999px;
-            cursor: pointer;
-            transition: all 0.2s ease-in-out;
-            font-weight: 500;
-            user-select: none;
-        }
-        .filter-option-input:checked + .filter-option-label {
-            background-color: #235937;
-            color: white;
-            border-color: #235937;
-        }
-        .filter-option-input { display: none; }
-        .pedagogo-filter-btn {
-            background-color: #f3f4f6;
-            color: #4b5563;
-        }
-        .pedagogo-filter-btn.active, .pedagogo-filter-btn:hover {
-            background-color: #235937;
-            color: white;
-        }
-        /* Correção para barra de rolagem da tabela */
-        .table-scroll-container {
-            flex-grow: 1;
-            position: relative;
-            overflow-y: auto;
-        }
-        .table-scroll-container table {
-            position: absolute;
-            width: 100%;
-        }
+        /* Animação de Loading */
+        #loading-overlay { transition: opacity 0.3s ease-in-out; }
+        .spinner { border: 4px solid rgba(255, 255, 255, 0.3); border-left-color: #235937; }
     </style>
 </head>
 <body class="text-gray-800 bg-gray-50">
+
+    <div id="loading-overlay" class="fixed inset-0 bg-gray-100 z-[100] flex flex-col items-center justify-center">
+        <div class="spinner h-12 w-12 animate-spin rounded-full"></div>
+        <p class="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
+    </div>
 
     <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
         <img src="Sistema-FAEP-SENAR-PR.png" alt="Logotipo" class="h-12 w-auto">
@@ -197,15 +116,21 @@ html {
     
     <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
         <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg relative transform transition-all duration-300 scale-95 opacity-0 overflow-hidden" id="modal-content">
-            <div id="modal-header" class="p-6 flex justify-between items-center">
-                 <div class="flex items-center gap-4">
-                    <div id="modal-stage-indicator" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"></div>
-                    <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+            <div id="modal-header" class="p-6">
+                 <div class="flex justify-between items-start">
+                    <div class="flex items-center gap-4">
+                        <div id="modal-stage-indicator" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"></div>
+                        <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
+                    </div>
+                    <button id="modal-close-btn" class="text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
                 </div>
-                <button id="modal-close-btn" class="text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
+                <div id="modal-tabs" class="mt-4 flex items-center border-b border-white/20">
+                    <button data-tab="details" class="modal-tab active">Detalhes</button>
+                    <button data-tab="schedule" class="modal-tab">Cronograma</button>
+                </div>
             </div>
             <div class="p-8">
-                <div class="space-y-5">
+                <div id="modal-tab-content-details" class="space-y-5">
                     <div class="border-b border-gray-200 pb-5">
                         <div class="space-y-4 text-gray-700">
                             <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Nível:</strong><span id="modal-level" class="font-semibold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-md text-sm"></span></div>
@@ -217,6 +142,8 @@ html {
                     </div>
                     <div><div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Etapa Atual:</strong><span id="modal-stage" class="text-gray-800 font-medium"></span></div></div>
                 </div>
+                <div id="modal-tab-content-schedule" class="hidden space-y-5">
+                    </div>
             </div>
         </div>
     </div>
@@ -275,8 +202,9 @@ html {
                 <div class="xl:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
                     <div class="flex justify-between items-center mb-4 flex-shrink-0">
                          <h3 class="text-lg font-bold text-brand-green">ACOMPANHAMENTO DETALHADO</h3>
-                         <button id="filter-table-btn" class="text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
+                         <button id="filter-table-btn" class="relative text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
                              <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
+                             <span id="filter-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center"></span>
                          </button>
                     </div>
                     <div class="table-scroll-container">
@@ -355,20 +283,29 @@ html {
             <div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0">
                 <div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div>
             </div>
-            <div id="expanded-calendar-grid" class="grid grid-cols-7 grid-rows-5 flex-grow gap-1 overflow-y-auto pr-2"></div>
+            <div id="expanded-calendar-grid" class="grid grid-cols-7 grid-rows-6 flex-grow gap-1 overflow-y-auto pr-2"></div>
         </div>
     </div>
     
     <div id="filter-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-        <div id="filter-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-3xl relative transform transition-all duration-300 scale-95 opacity-0 p-8">
+        <div id="filter-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative transform transition-all duration-300 scale-95 opacity-0 p-8">
             <div class="flex justify-between items-center mb-6">
                 <h2 class="text-xl font-bold text-brand-green">Filtrar Cursos</h2>
                 <button id="filter-modal-close-btn" class="text-gray-400 hover:text-gray-800"><svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
             </div>
-            <div class="grid grid-cols-3 gap-8">
-                <div class="space-y-4"><h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Etapa</h3><div id="filter-stage-options" class="space-y-2"></div></div>
-                <div class="space-y-4"><h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Técnico</h3><div id="filter-tech-options" class="space-y-2 max-h-48 overflow-y-auto pr-2"></div></div>
-                <div class="space-y-4"><h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Pedagogo</h3><div id="filter-pedagogue-options" class="space-y-2 max-h-48 overflow-y-auto pr-2"></div></div>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Etapa</h3>
+                    <div id="filter-stage-options" class="flex flex-wrap gap-3"></div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Técnico</h3>
+                    <div id="filter-tech-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
+                </div>
+                <div>
+                    <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Pedagogo</h3>
+                    <div id="filter-pedagogue-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
+                </div>
             </div>
             <div class="flex justify-end gap-4 mt-8 pt-6 border-t">
                 <button id="filter-clear-btn" class="text-sm font-semibold text-gray-600 hover:underline">Limpar Filtros</button>
@@ -414,18 +351,16 @@ html {
             const formatDate = (date) => date ? new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A';
             
             const pageLinks = document.querySelectorAll('.page-link');
-            const pages = { dashboard: document.getElementById('page-dashboard'), relatorio: document.getElementById('page-relatorio'), pedagogo: document.getElementById('page-pedagogo') };
-            Object.values(pages).forEach(p => { if (p) { p.style.opacity = '0'; p.style.pointerEvents = 'none'; } });
-            const showPage = (pageId) => Object.entries(pages).forEach(([id, el]) => { if(el){ el.style.opacity = (id === pageId) ? '1' : '0'; el.style.pointerEvents = (id === pageId) ? 'auto' : 'none'; } });
+            const pages = document.querySelectorAll('.page-content');
+            const showPage = (pageId) => pages.forEach(p => p.classList.toggle('active', p.id === `page-${pageId}`));
             pageLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); showPage(link.dataset.page); document.getElementById('menu-dropdown').classList.add('hidden'); document.getElementById('sideMenu').classList.remove('show'); }));
 
             const resultModal = document.getElementById('result-modal'), modalContent = document.getElementById('modal-content');
             function openModal(course) {
                 const percentage = stagePercentageMap[course.etapaAtual] || 0;
                 const colors = getIndicatorColor(percentage);
-                const indicatorEl = document.getElementById('modal-stage-indicator');
-                indicatorEl.className = `w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm ${colors.lightBg} ${colors.textColor || 'text-white'}`;
-                indicatorEl.textContent = `${percentage}%`;
+                document.getElementById('modal-stage-indicator').className = `w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm ${colors.lightBg} ${colors.textColor || 'text-white'}`;
+                document.getElementById('modal-stage-indicator').textContent = `${percentage}%`;
                 document.getElementById('modal-header').style.backgroundColor = colors.hex;
                 document.getElementById('modal-title').textContent = course.nome;
                 document.getElementById('modal-level').textContent = course.nivel;
@@ -433,10 +368,44 @@ html {
                 document.getElementById('modal-tech').textContent = course.tecnico;
                 document.getElementById('modal-pedagogue').textContent = course.pedagogo;
                 document.getElementById('modal-stage').textContent = course.etapaAtual;
+                
+                // Populando a aba de cronograma
+                const scheduleContent = document.getElementById('modal-tab-content-schedule');
+                let scheduleHtml = '';
+                if (course.pilotoInicio && course.pilotoFim) {
+                    scheduleHtml += `<div class="border-b border-gray-200 pb-5">
+                        <strong class="font-semibold text-gray-500 mb-2 block">Curso Piloto</strong>
+                        <div class="text-gray-800 font-medium">De: ${formatDate(course.pilotoInicio)}<br>Até: ${formatDate(course.pilotoFim)}</div>
+                    </div>`;
+                }
+                if (course.formacaoInicio && course.formacaoFim) {
+                    scheduleHtml += `<div class="pt-5">
+                        <strong class="font-semibold text-gray-500 mb-2 block">Formação de Instrutores</strong>
+                        <div class="text-gray-800 font-medium">De: ${formatDate(course.formacaoInicio)}<br>Até: ${formatDate(course.formacaoFim)}</div>
+                    </div>`;
+                }
+                scheduleContent.innerHTML = scheduleHtml || '<p class="text-gray-500">Nenhuma data de cronograma definida para este curso.</p>';
+                
+                // Resetando para a aba de detalhes
+                document.querySelector('.modal-tab[data-tab="details"]').classList.add('active');
+                document.querySelector('.modal-tab[data-tab="schedule"]').classList.remove('active');
+                document.getElementById('modal-tab-content-details').classList.remove('hidden');
+                document.getElementById('modal-tab-content-schedule').classList.add('hidden');
+
                 resultModal.classList.remove('hidden');
                 setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
             }
             window.addEventListener('openCourseModal', e => openModal(e.detail));
+
+            document.querySelectorAll('.modal-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+                    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById('modal-tab-content-details').classList.toggle('hidden', tabName !== 'details');
+                    document.getElementById('modal-tab-content-schedule').classList.toggle('hidden', tabName !== 'schedule');
+                });
+            });
 
             function destroyCharts() { Object.values(chartInstances).forEach(c => c && c.destroy()); chartInstances = {}; }
             
@@ -605,10 +574,14 @@ html {
                     const uniqueStages = [...new Set(fullCourseData.map(c => c.etapaAtual).filter(Boolean))];
                     const uniqueTechs = [...new Set(fullCourseData.map(c => c.tecnico).filter(Boolean))].sort();
                     const uniquePedagogues = [...new Set(fullCourseData.map(c => c.pedagogo).filter(Boolean))].sort();
-                    const createCheckbox = (v, g, i) => `<label for="filter-${g}-${i}" class="flex items-center space-x-3 cursor-pointer"><input type="checkbox" data-group="${g}" value="${v}" id="filter-${g}-${i}" class="h-4 w-4 rounded border-gray-300 text-brand-green focus:ring-brand-green"><span class="text-gray-700">${v}</span></label>`;
-                    filterStageOptions.innerHTML = uniqueStages.map((v, i) => createCheckbox(v, 'etapaAtual', i)).join('');
-                    filterTechOptions.innerHTML = uniqueTechs.map((v, i) => createCheckbox(v, 'tecnico', i)).join('');
-                    filterPedagogueOptions.innerHTML = uniquePedagogues.map((v, i) => createCheckbox(v, 'pedagogo', i)).join('');
+                    
+                    const createPill = (value, group) => `<div class="filter-pill" data-group="${group}" data-value="${value}">${value}</div>`;
+                    
+                    filterStageOptions.innerHTML = uniqueStages.map(v => createPill(v, 'etapaAtual')).join('');
+                    filterTechOptions.innerHTML = uniqueTechs.map(v => createPill(v, 'tecnico')).join('');
+                    filterPedagogueOptions.innerHTML = uniquePedagogues.map(v => createPill(v, 'pedagogo')).join('');
+                    
+                    document.querySelectorAll('.filter-pill').forEach(pill => pill.addEventListener('click', () => pill.classList.toggle('active')));
                 }
                 
                 const updateReportCards = (data) => {
@@ -621,22 +594,37 @@ html {
                 };
 
                 function applyFilters() {
-                    activeFilters.etapaAtual = [...filterStageOptions.querySelectorAll('input:checked')].map(el => el.value);
-                    activeFilters.tecnico = [...filterTechOptions.querySelectorAll('input:checked')].map(el => el.value);
-                    activeFilters.pedagogo = [...filterPedagogueOptions.querySelectorAll('input:checked')].map(el => el.value);
+                    activeFilters.etapaAtual = [...filterStageOptions.querySelectorAll('.filter-pill.active')].map(el => el.dataset.value);
+                    activeFilters.tecnico = [...filterTechOptions.querySelectorAll('.filter-pill.active')].map(el => el.dataset.value);
+                    activeFilters.pedagogo = [...filterPedagogueOptions.querySelectorAll('.filter-pill.active')].map(el => el.dataset.value);
+
                     let filteredData = getYearFilteredData().cursos;
                     if (activeFilters.etapaAtual.length > 0) filteredData = filteredData.filter(c => activeFilters.etapaAtual.includes(c.etapaAtual));
                     if (activeFilters.tecnico.length > 0) filteredData = filteredData.filter(c => activeFilters.tecnico.includes(c.tecnico));
                     if (activeFilters.pedagogo.length > 0) filteredData = filteredData.filter(c => activeFilters.pedagogo.includes(c.pedagogo));
-                    const hasActiveFilters = Object.values(activeFilters).some(arr => arr.length > 0);
-                    filterBtn.classList.toggle('text-brand-green', hasActiveFilters); filterBtn.classList.toggle('text-gray-500', !hasActiveFilters);
+                    
+                    const activeFilterCount = Object.values(activeFilters).reduce((sum, arr) => sum + arr.length, 0);
+                    const filterBadge = document.getElementById('filter-badge');
+                    if (activeFilterCount > 0) {
+                        filterBadge.textContent = activeFilterCount;
+                        filterBadge.classList.remove('hidden');
+                        filterBtn.classList.add('text-brand-green');
+                    } else {
+                        filterBadge.classList.add('hidden');
+                        filterBtn.classList.remove('text-brand-green');
+                    }
+
                     currentData = filteredData; currentSort = { column: null, direction: 'asc' };
                     updateSortIcons(); renderTableBody(currentData); updateReportCards(currentData);
                     renderSpeedometer(); renderSmallCalendar();
                 }
 
                 document.getElementById('filter-modal-close-btn').addEventListener('click', closeFilterModal);
-                document.getElementById('filter-clear-btn').addEventListener('click', () => { filterModal.querySelectorAll('input:checked').forEach(el => el.checked = false); applyFilters(); closeFilterModal(); });
+                document.getElementById('filter-clear-btn').addEventListener('click', () => { 
+                    filterModal.querySelectorAll('.filter-pill.active').forEach(el => el.classList.remove('active')); 
+                    applyFilters(); 
+                    closeFilterModal(); 
+                });
                 filterBtn.addEventListener('click', openFilterModal);
                 document.getElementById('filter-apply-btn').addEventListener('click', () => { applyFilters(); closeFilterModal(); });
                 window.updateReportPage = applyFilters;
@@ -665,9 +653,82 @@ html {
                     document.getElementById('sm-next-month').onclick = () => { smallCalendarDate.setMonth(smallCalendarDate.getMonth() + 1); renderSmallCalendar(); };
                 };
                 
-                const openCalendarModal = () => { /* Logic to be implemented */ };
+                const calendarModal = document.getElementById('calendar-modal'), calendarModalContent = document.getElementById('calendar-modal-content');
+                let expandedCalendarDate = new Date();
+
+                const openCalendarModal = () => {
+                    renderExpandedCalendar();
+                    calendarModal.classList.remove('hidden');
+                    setTimeout(() => calendarModalContent.classList.remove('scale-95', 'opacity-0'), 10);
+                };
+
+                const closeCalendarModal = () => {
+                    calendarModalContent.classList.add('scale-95', 'opacity-0');
+                    setTimeout(() => calendarModal.classList.add('hidden'), 300);
+                };
+
+                const renderExpandedCalendar = () => {
+                     const month = expandedCalendarDate.getMonth(), year = expandedCalendarDate.getFullYear();
+                     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+                     document.getElementById('expanded-calendar-title').textContent = `${monthNames[month]} ${year}`;
+
+                     const grid = document.getElementById('expanded-calendar-grid');
+                     grid.innerHTML = ''; // Limpa o grid
+
+                     const firstDay = new Date(year, month, 1);
+                     const lastDay = new Date(year, month + 1, 0);
+                     const startDate = new Date(firstDay);
+                     startDate.setDate(startDate.getDate() - firstDay.getDay());
+                     const endDate = new Date(lastDay);
+                     if (endDate.getDay() !== 6) endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
+                     
+                     const { cursos, formacoes } = getYearFilteredData();
+                     
+                     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                         const cell = document.createElement('div');
+                         cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
+                         const dayNumber = document.createElement('span');
+                         dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
+                         dayNumber.textContent = d.getDate();
+                         if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
+                         cell.appendChild(dayNumber);
+                         
+                         const todaysEvents = [];
+                         cursos.forEach(c => {
+                             if (c.pilotoInicio && d >= c.pilotoInicio && d <= c.pilotoFim) todaysEvents.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
+                             if (c.formacaoInicio && d >= c.formacaoInicio && d <= c.formacaoFim) todaysEvents.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
+                         });
+                         formacoes.forEach(f => {
+                             const cursoOriginal = cursos.find(c => c.nome === f.curso);
+                             if (cursoOriginal && f.inicio && d >= f.inicio && d <= f.fim) todaysEvents.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
+                         });
+
+                         let eventTop = 35; // Posição inicial dos eventos na célula
+                         todaysEvents.forEach(event => {
+                             if (d.getTime() === event.start.getTime() || (d.getDay() === 0 && d > event.start)) {
+                                 const eventDiv = document.createElement('div');
+                                 const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
+                                 const width = Math.min(diffDays, 7 - d.getDay());
+                                 
+                                 eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
+                                 eventDiv.style.width = `calc(${width * 100}% - 4px)`;
+                                 eventDiv.style.marginLeft = '2px';
+                                 eventDiv.style.top = `${eventTop}px`;
+                                 eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
+                                 cell.appendChild(eventDiv);
+                                 eventTop += 22; // Incrementa a posição para o próximo evento
+                             }
+                         });
+
+                         grid.appendChild(cell);
+                     }
+                };
+
                 document.getElementById('expand-calendar-btn').addEventListener('click', openCalendarModal);
-                document.getElementById('calendar-modal-close-btn').addEventListener('click', () => { document.getElementById('calendar-modal-content').classList.add('scale-95', 'opacity-0'); setTimeout(() => calendarModal.classList.add('hidden'), 300); });
+                document.getElementById('calendar-modal-close-btn').addEventListener('click', closeCalendarModal);
+                document.getElementById('expanded-calendar-prev-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() - 1); renderExpandedCalendar(); };
+                document.getElementById('expanded-calendar-next-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() + 1); renderExpandedCalendar(); };
+
 
                 const renderSpeedometer = () => {
                     const container = document.getElementById('kpi-speedometer-container');
@@ -750,27 +811,28 @@ html {
                         
                         const todaysEvents = [];
                         cursos.forEach(c => {
-                            if (c.pilotoInicio && d >= c.pilotoInicio && d <= c.pilotoFim) todaysEvents.push({type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c});
-                            if (c.formacaoInicio && d >= c.formacaoInicio && d <= c.formacaoFim) todaysEvents.push({type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c});
+                            if (c.pilotoInicio && d >= c.pilotoInicio && d <= c.pilotoFim) todaysEvents.push({type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800'});
+                            if (c.formacaoInicio && d >= c.formacaoInicio && d <= c.formacaoFim) todaysEvents.push({type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800'});
                         });
                         formacoes.forEach(f => {
                             const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                            if(cursoOriginal && f.inicio && d >= f.inicio && d <= f.fim) todaysEvents.push({type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal});
+                            if(cursoOriginal && f.inicio && d >= f.inicio && d <= f.fim) todaysEvents.push({type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800'});
                         });
 
+                        let eventTop = 35; // Posição inicial dos eventos na célula
                         todaysEvents.forEach(event => {
                            if (d.getTime() === event.start.getTime() || (d.getDay() === 0 && d > event.start)) {
                                const eventDiv = document.createElement('div');
                                const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
-                               const weekDay = d.getDay();
-                               const width = Math.min(diffDays, 7 - weekDay);
+                               const width = Math.min(diffDays, 7 - d.getDay());
                                
-                               const colorClass = event.type === 'Piloto' ? 'bg-orange-300 text-orange-800' : 'bg-pink-300 text-pink-800';
-                               eventDiv.className = `absolute top-10 left-0 p-1 text-[10px] leading-tight font-semibold truncate ${colorClass} h-5 flex items-center`;
-                               eventDiv.style.width = `calc(${width * 100}% - 2px)`;
-                               eventDiv.style.marginLeft = '1px';
+                               eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
+                               eventDiv.style.width = `calc(${width * 100}% - 4px)`;
+                               eventDiv.style.marginLeft = '2px';
+                               eventDiv.style.top = `${eventTop}px`;
                                eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
                                cell.appendChild(eventDiv);
+                               eventTop += 22;
                            }
                         });
                         grid.appendChild(cell);
@@ -798,6 +860,7 @@ html {
             yearSelector.addEventListener('change', () => { updateDashboardPage(); if(window.updateReportPage) window.updateReportPage(); if(window.updatePedagogoPage) window.updatePedagogoPage(); });
 
             const success = await fetchData();
+            const loadingOverlay = document.getElementById('loading-overlay');
             if (success) {
                 populateYearSelector();
                 initializeDashboard();
@@ -805,6 +868,11 @@ html {
                 initializePedagogoPage();
                 showPage('dashboard');
                 Chart.defaults.font.family = "'Inter', sans-serif";
+                
+                loadingOverlay.style.opacity = '0';
+                setTimeout(() => loadingOverlay.style.display = 'none', 300);
+            } else {
+                loadingOverlay.innerHTML = '<p class="text-lg font-semibold text-red-500">Falha ao carregar os dados.</p>';
             }
         });
     </script>
