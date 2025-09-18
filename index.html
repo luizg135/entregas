@@ -21,25 +21,16 @@
         }
     </script>
     <style>
-        /* Estilo para viewport scaling */
-        html, body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* Previne scrollbars indesejadas */
-            background-color: #f0f2f5;
-        }
-        #app-container {
-            width: 1920px;
-            height: 1080px;
-            transform-origin: top left;
-            position: absolute;
-            top: 0;
-            left: 0;
-        }
-        
-        body { font-family: 'Inter', sans-serif; }
-        main { position: relative; margin-top: 112px; height: calc(1080px - 112px); }
-        .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 0 32px 24px 32px; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
+        /* CSS para Layout Responsivo Robusto */
+        html { font-size: 16px; }
+        @media (max-width: 1920px) { html { font-size: 0.833vw; } }
+        @media (max-width: 1200px) { html { font-size: 10px; } }
+        @media (min-width: 2400px) { html { font-size: 18px; } }
+
+        body { font-family: 'Inter', sans-serif; width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #f9fafb; }
+        .app-wrapper { width: 100%; height: 100%; }
+        main { position: relative; margin-top: 7rem; height: calc(100vh - 7rem); }
+        .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 0 2rem 1.5rem 2rem; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
         .page-content.active { opacity: 1; pointer-events: auto; }
         #page-relatorio.page-content.active { overflow: hidden; }
 
@@ -51,11 +42,11 @@
         .table-scroll-container { flex-grow: 1; position: relative; overflow-y: auto; }
         .table-scroll-container table { position: absolute; width: 100%; }
         
-        .filter-pill { padding: 8px 20px; border-radius: 9999px; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none; }
+        .filter-pill { padding: 0.5rem 1.25rem; border-radius: 9999px; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none; }
         .filter-pill:hover { background-color: #e5e7eb; }
         .filter-pill.active { background-color: #235937; color: white; border-color: #235937; transform: scale(1.05); }
 
-        .modal-tab { padding: 8px 16px; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
+        .modal-tab { padding: 0.5rem 1rem; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
         .modal-tab:hover { color: #d1d5db; }
         .modal-tab.active { color: white; border-bottom-color: white; }
 
@@ -71,7 +62,7 @@
         <p class="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
     </div>
 
-    <div id="app-container">
+    <div class="app-wrapper">
         <header class="fixed top-0 left-0 right-0 p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
             <img src="Sistema-FAEP-SENAR-PR.png" alt="Logotipo" class="h-12 w-auto">
             <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -317,24 +308,9 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', async function() {
-            
-            function scaleApp() {
-                const app = document.getElementById('app-container');
-                const baseWidth = 1920;
-                const baseHeight = 1080;
-                const scaleX = window.innerWidth / baseWidth;
-                const scaleY = window.innerHeight / baseHeight;
-                const scale = Math.min(scaleX, scaleY);
-                app.style.transform = `scale(${scale})`;
-                app.style.left = `${(window.innerWidth - baseWidth * scale) / 2}px`;
-                app.style.top = `${(window.innerHeight - baseHeight * scale) / 2}px`;
-            }
-            window.addEventListener('resize', scaleApp);
-            
             let apiData = null;
             let chartInstances = {};
             const API_URL = "https://entregas-api.vercel.app/api/dados";
-
             const stageNameMapping = { "Prospecção e Contratação de Especialistas": "Etapa 1", "Edital de Credenciamento": "Etapa 2", "Curso Piloto": "Etapa 3", "Formação de Instrutores": "Etapa 4", "Entrega Técnica": "Etapa 5", "Lançamento a Campo": "Etapa 6" };
 
             async function fetchData() {
@@ -862,7 +838,8 @@
                 showPage('dashboard');
                 Chart.defaults.font.family = "'Inter', sans-serif";
                 
-                scaleApp(); // Initial scale
+                // Set initial scale and remove the wrapper approach
+                window.dispatchEvent(new Event('resize')); 
                 
                 loadingOverlay.style.opacity = '0';
                 setTimeout(() => loadingOverlay.style.display = 'none', 300);
