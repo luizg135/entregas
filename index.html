@@ -100,12 +100,14 @@
         /* Remove a rolagem e a seta do seletor */
         .search-suggestions::-webkit-scrollbar,
         .table-container::-webkit-scrollbar,
-        .main-content-area::-webkit-scrollbar {
+        .main-content-area::-webkit-scrollbar,
+        .modal-body::-webkit-scrollbar {
             display: none;
         }
         .search-suggestions,
         .table-container,
-        .main-content-area {
+        .main-content-area,
+        .modal-body {
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
@@ -207,6 +209,14 @@
             padding: 1.5rem;
             overflow-y: auto;
         }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            background-color: white;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
         .modal-close-btn {
             background: none;
             border: none;
@@ -238,6 +248,18 @@
          .modal-tabs button.active {
             color: #235937;
             border-bottom-color: #235937;
+        }
+        
+        /* Tabela de Relatórios */
+        .sortable-header {
+            cursor: pointer;
+        }
+        .sortable-header:hover {
+            background-color: #f3f4f6;
+        }
+        .filter-btn.active {
+            color: #235937;
+            background-color: #e8f5e9;
         }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -274,12 +296,25 @@
                 <button id="tab-agenda">Agenda</button>
             </div>
             <div class="modal-body">
-                <div id="content-detalhes">
-                    <!-- Conteúdo preenchido via JS -->
-                </div>
-                <div id="content-agenda" class="hidden">
-                    <!-- Conteúdo preenchido via JS -->
-                </div>
+                <div id="content-detalhes"></div>
+                <div id="content-agenda" class="hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Filtros -->
+     <div id="filter-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-white">Filtrar Cursos</h2>
+                <button id="filter-close-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div id="filter-modal-body" class="modal-body grid grid-cols-2 gap-6">
+                <!-- Filtros preenchidos via JS -->
+            </div>
+             <div class="modal-footer">
+                <button id="clear-filters-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Limpar Filtros</button>
+                <button id="apply-filters-btn" class="px-4 py-2 text-sm font-medium text-white bg-[#235937] border border-transparent rounded-md hover:bg-green-800">Aplicar</button>
             </div>
         </div>
     </div>
@@ -291,6 +326,8 @@
             let selectedYear = 'all';
             let charts = {}; // Objeto para armazenar instâncias dos gráficos
             let carouselInterval;
+            let sortConfig = { key: 'nome', direction: 'ascending' };
+            let activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
 
             // --- FUNÇÕES DE RENDERIZAÇÃO ---
             
@@ -334,13 +371,10 @@
 
                 return `
                     <div class="grid grid-cols-5 gap-6">
-                        <!-- Meta Card -->
                         <div class="col-span-1 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center items-center text-center">
                              <p class="text-sm font-medium text-gray-500 leading-tight">Meta de Entregas</p>
                              <p class="text-4xl font-bold text-gray-800">${indicadores.meta_entregas || 0}</p>
                         </div>
-
-                        <!-- Cursos Novos Card -->
                         <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
                             <div class="flex justify-between items-center mb-2">
                                 <p class="text-sm font-medium text-gray-500">Entregas (Cursos Novos)</p>
@@ -350,8 +384,6 @@
                                 <div class="h-5 rounded-full" style="width: ${novosPercent}%; background-color: #235937;"></div>
                             </div>
                         </div>
-
-                        <!-- Atualizações Card -->
                         <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
                             <div class="flex justify-between items-center mb-2">
                                 <p class="text-sm font-medium text-gray-500">Entregas (Atualizações)</p>
@@ -609,14 +641,104 @@
                 resetAndStartInterval();
             }
 
-            function renderRelatorios() {
-                 document.getElementById('relatorio').innerHTML = `
+            function renderRelatorios(indicadores, cursos) {
+                const container = document.getElementById('relatorio');
+                 container.innerHTML = `
                     ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
-                     <div class="flex-grow p-6 main-content-area">
-                        <!-- Área de conteúdo para design da aba Relatório -->
+                     <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
+                        <div class="flex-shrink-0">${generateRelatorioCardsHTML(indicadores)}</div>
+                        <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col">
+                           <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                                <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
+                                <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="overflow-y-auto table-container">
+                                ${generateRelatorioTableHTML(cursos)}
+                            </div>
+                        </div>
                     </div>
                 `;
             }
+
+            function generateRelatorioCardsHTML(indicadores) {
+                return `
+                    <div class="grid grid-cols-5 gap-6">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.totalCursos}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Total de Cursos</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.cursosNovos}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Cursos Novos</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.atualizacoes}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Atualizações</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-green-600">${indicadores.entregues}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Entregues</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-yellow-500">${indicadores.restante}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Restante</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function getIndicatorColorClass(percentage) {
+                if (percentage >= 0 && percentage <= 5) return 'bg-gray-500';
+                if (percentage >= 6 && percentage <= 15) return 'bg-red-500';
+                if (percentage >= 16 && percentage <= 30) return 'bg-orange-500';
+                if (percentage >= 31 && percentage <= 70) return 'bg-lime-500';
+                return 'bg-green-700';
+            }
+
+            function generateRelatorioTableHTML(cursos) {
+                const getSortIndicator = (key) => {
+                    if (sortConfig.key !== key) return '';
+                    return sortConfig.direction === 'ascending' ? '▲' : '▼';
+                };
+
+                const tableRows = cursos.map(curso => {
+                    const data = curso.dataDisponivel ? new Date(curso.dataDisponivel).toLocaleDateString('pt-BR', {month: '2-digit', year: 'numeric', timeZone: 'UTC'}) : 'N/D';
+                    const colorClass = getIndicatorColorClass(curso.indicadorReal * 100);
+                    return `
+                        <tr class="hover:bg-gray-50 cursor-pointer report-table-row" data-course-name="${curso.nome}" data-course-level="${curso.nivel}">
+                            <td class="px-6 py-4 whitespace-nowrap"><div class="w-3 h-3 rounded-full ${colorClass}"></div></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${curso.nome}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.nivel || 'N/D'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.tipo || 'N/D'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${data}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.pedagogo || 'N/D'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.etapaAtual || 'N/D'}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                         <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0 z-10">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
+                        </table>
+                `;
+            }
+
 
             function renderPedagogos() {
                 document.getElementById('pedagogos').innerHTML = `
@@ -633,8 +755,39 @@
                 const yearKey = selectedYear === 'all' ? 'Total' : selectedYear;
                 const analiseDoAno = dashboardData.analises[yearKey] || { totalEntregas: {}, metaEntregas: 0, cursosPorEtapa: {}, planejamentoTrimestral: {}, cursosPorNivel: {} };
                 const entregas = analiseDoAno.totalEntregas || {};
+                
+                let filteredCoursesByYear = (selectedYear === 'all')
+                    ? dashboardData.fullCronograma
+                    : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
+                
+                // Aplicar filtros de modal
+                let filteredCourses = filteredCoursesByYear.filter(course => {
+                    return (activeFilters.tecnico.length === 0 || activeFilters.tecnico.includes(course.tecnico)) &&
+                           (activeFilters.pedagogo.length === 0 || activeFilters.pedagogo.includes(course.pedagogo)) &&
+                           (activeFilters.etapaAtual.length === 0 || activeFilters.etapaAtual.includes(course.etapaAtual)) &&
+                           (activeFilters.nivel.length === 0 || activeFilters.nivel.includes(course.nivel)) &&
+                           (activeFilters.tipo.length === 0 || activeFilters.tipo.includes(course.tipo));
+                });
+                
+                // Aplicar a ordenação
+                filteredCourses.sort((a, b) => {
+                    const key = sortConfig.key;
+                    const direction = sortConfig.direction === 'ascending' ? 1 : -1;
+                    const valA = a[key] || '';
+                    const valB = b[key] || '';
 
-                const indicadores = {
+                    if (key === 'dataDisponivel') {
+                        return (new Date(valA) - new Date(valB)) * direction;
+                    }
+
+                    if (typeof valA === 'string') {
+                        return valA.localeCompare(valB) * direction;
+                    }
+                    return (valA - valB) * direction;
+                });
+
+
+                const indicadoresInicio = {
                     meta_entregas: analiseDoAno.metaEntregas,
                     totalNovos: entregas.totalNovos,
                     novosEntregues: entregas.novosEntregues,
@@ -642,10 +795,19 @@
                     atualizacoesEntregues: entregas.atualizacoesEntregues,
                 };
                 
+                const entreguesCount = filteredCourses.filter(c => c.etapaAtual && c.etapaAtual.toLowerCase() === 'entregue').length;
+                const indicadoresRelatorio = {
+                    totalCursos: filteredCourses.length,
+                    cursosNovos: filteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('novo')).length,
+                    atualizacoes: filteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('atualização')).length,
+                    entregues: entreguesCount,
+                    restante: filteredCourses.length - entreguesCount
+                };
+                
                 const proximosLancamentos = dashboardData.proximosLancamentos || [];
 
-                renderInicio(indicadores, analiseDoAno, proximosLancamentos);
-                renderRelatorios();
+                renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
+                renderRelatorios(indicadoresRelatorio, filteredCourses);
                 renderPedagogos();
 
                 const activeLink = document.querySelector('.menu-link.active');
@@ -653,6 +815,12 @@
                 
                 document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
                 document.getElementById(activeTabId)?.classList.remove('hidden');
+                
+                const filterBtn = document.getElementById('filter-btn');
+                if (filterBtn) {
+                     const isFilterActive = Object.values(activeFilters).some(arr => arr.length > 0);
+                     filterBtn.classList.toggle('active', isFilterActive);
+                }
             }
 
             // --- Lógica do Modal ---
@@ -665,7 +833,7 @@
 
                 const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
                 if (!course) return;
-
+                
                 const percentual = course.indicadorReal ? `${(course.indicadorReal * 100).toFixed(0)}%` : '';
                 const dataEntrega = course.dataDisponivel ? new Date(course.dataDisponivel).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
                 const formattedEntrega = dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1);
@@ -793,6 +961,9 @@
             document.getElementById('modal-close-btn').addEventListener('click', () => {
                 document.getElementById('course-modal').classList.add('hidden');
             });
+            document.getElementById('filter-close-btn').addEventListener('click', () => {
+                document.getElementById('filter-modal').classList.add('hidden');
+            });
 
             document.getElementById('tab-detalhes').addEventListener('click', () => {
                 document.getElementById('tab-detalhes').classList.add('active');
@@ -830,10 +1001,13 @@
                 
                 const searchResult = e.target.closest('.search-suggestion-item');
                 const carouselItem = e.target.closest('.carousel-item');
-                if (searchResult || carouselItem) {
+                const reportRow = e.target.closest('.report-table-row');
+
+                if (searchResult || carouselItem || reportRow) {
                     e.preventDefault();
-                    const courseName = (searchResult || carouselItem).dataset.courseName;
-                    const courseLevel = (searchResult || carouselItem).dataset.courseLevel;
+                    const target = searchResult || carouselItem || reportRow;
+                    const courseName = target.dataset.courseName;
+                    const courseLevel = target.dataset.courseLevel;
                     openModal(courseName, courseLevel);
 
                     const activeSection = document.querySelector('.content-section:not(.hidden)');
@@ -844,6 +1018,26 @@
                         if(suggestionsContainer) suggestionsContainer.classList.add('hidden');
                     }
                 }
+                
+                const sortHeader = e.target.closest('.sortable-header');
+                if(sortHeader) {
+                    const key = sortHeader.dataset.sort;
+                    const direction = sortConfig.key === key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending';
+                    sortConfig = { key, direction };
+                    updateDashboardView();
+                }
+                
+                if (e.target.closest('#filter-btn')) {
+                    populateFilterModal();
+                    document.getElementById('filter-modal').classList.remove('hidden');
+                }
+                if (e.target.closest('#apply-filters-btn')) {
+                    applyFilters();
+                }
+                if (e.target.closest('#clear-filters-btn')) {
+                    clearFilters();
+                }
+
             });
             
              document.body.addEventListener('input', function(e) {
@@ -858,14 +1052,14 @@
                         return;
                     }
                     
-                    const filtered = dashboardData.cronograma.filter(c => {
-                        const matchesQuery = c.curso.toLowerCase().includes(query);
+                    const filtered = dashboardData.fullCronograma.filter(c => {
+                        const matchesQuery = (c.nome.toLowerCase().includes(query) || (c.nivel || '').toLowerCase().includes(query));
                         const matchesYear = !yearToFilter || c.anoDisponivel === yearToFilter;
                         return matchesQuery && matchesYear;
                     });
                     
                     if(filtered.length > 0) {
-                        suggestionsContainer.innerHTML = filtered.map(c => `<a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 search-suggestion-item" data-course-name="${c.curso}" data-course-level="${c.nivel}">${c.curso} | <span class="text-gray-500">${c.nivel || 'N/D'}</span></a>`).join('');
+                        suggestionsContainer.innerHTML = filtered.map(c => `<a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 search-suggestion-item" data-course-name="${c.nome}" data-course-level="${c.nivel}">${c.nome} | <span class="text-gray-500">${c.nivel || 'N/D'}</span></a>`).join('');
                         suggestionsContainer.classList.remove('hidden');
                     } else {
                         suggestionsContainer.classList.add('hidden');
@@ -879,6 +1073,51 @@
                     updateDashboardView();
                 }
             });
+            
+            function populateFilterModal() {
+                const modalBody = document.getElementById('filter-modal-body');
+                const courses = (selectedYear === 'all')
+                    ? dashboardData.fullCronograma
+                    : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
+                
+                const filters = {
+                    tecnico: 'Técnicos',
+                    pedagogo: 'Pedagogos',
+                    etapaAtual: 'Etapa Atual',
+                    nivel: 'Nível',
+                    tipo: 'Tipo'
+                };
+
+                let html = '';
+                for(const key in filters) {
+                    const uniqueValues = [...new Set(courses.map(c => c[key]).filter(Boolean))].sort();
+                    html += `<div><h3 class="font-semibold mb-2">${filters[key]}</h3><div class="space-y-1">`;
+                    uniqueValues.forEach(value => {
+                        const isChecked = activeFilters[key].includes(value) ? 'checked' : '';
+                        html += `<label class="flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-filter-key="${key}" value="${value}" ${isChecked}> <span class="ml-2 text-sm text-gray-700">${value}</span></label>`;
+                    });
+                    html += `</div></div>`;
+                }
+                modalBody.innerHTML = html;
+            }
+
+            function applyFilters() {
+                 const newFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+                 document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked').forEach(checkbox => {
+                     const key = checkbox.dataset.filterKey;
+                     newFilters[key].push(checkbox.value);
+                 });
+                 activeFilters = newFilters;
+                 updateDashboardView();
+                 document.getElementById('filter-modal').classList.add('hidden');
+            }
+
+            function clearFilters() {
+                activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+                updateDashboardView();
+                document.getElementById('filter-modal').classList.add('hidden');
+            }
+
 
             async function initialize() {
                 try {
