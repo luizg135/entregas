@@ -3,862 +3,923 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard de Acompanhamento</title>
+    <title>Dashboard de Entregas de Cursos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        /* Estilos Globais */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        /* --- Menu Lateral --- */
+        #menu-trigger-zone {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            z-index: 49;
+        }
+
+        #side-menu {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            transform: translateX(-100%) translateY(-50%); 
+            transition: transform 0.3s ease-in-out;
+            background-color: #235937;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 16px 12px;
+            z-index: 50;
+        }
+
+        #menu-trigger-zone:hover + #side-menu,
+        #side-menu:hover {
+            transform: translateX(0) translateY(-50%);
+        }
+
+        #side-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #side-menu a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        #side-menu a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        #side-menu a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        /* --- Contêiner Principal do Dashboard --- */
+        #dashboard-container {
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            background-color: #f8fafc; /* Cor de fundo principal */
+        }
+        
+        /* --- Seções de Conteúdo (Abas) --- */
+        .content-section {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hidden {
+            display: none;
+        }
+        
+        /* Remove a rolagem e a seta do seletor */
+        .search-suggestions::-webkit-scrollbar,
+        .table-container::-webkit-scrollbar,
+        .main-content-area::-webkit-scrollbar {
+            display: none;
+        }
+        .search-suggestions,
+        .table-container,
+        .main-content-area {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .year-selector {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 1rem; /* Mantém o padding para não cortar o texto */
+        }
+        
+        /* Estilos Carrossel */
+        .carousel-wrapper {
+            position: relative;
+        }
+        .carousel-container {
+            overflow: hidden;
+            width: 100%;
+        }
+        .carousel-track {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+        .carousel-item {
+            min-width: calc(100% / 5);
+            box-sizing: border-box;
+            padding: 0 0.75rem; /* gap-6 -> p-3 */
+            cursor: pointer;
+        }
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: white;
+            border-radius: 9999px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .carousel-wrapper:hover .carousel-btn {
+            opacity: 1;
+        }
+        .carousel-btn:hover {
+            background-color: #f3f4f6;
+        }
+        .carousel-btn.prev {
+            left: -1rem;
+        }
+        .carousel-btn.next {
+            right: -1rem;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+            width: 50rem;
+            max-width: 90%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #235937;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+         #modal-course-name {
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: white;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+        .modal-close-btn:hover {
+            opacity: 1;
+        }
+        .modal-tabs {
+            background-color: white;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-tabs button {
+            padding: 0.75rem 0.25rem;
+            margin-right: 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #6b7280;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+             transition: all 0.2s ease-in-out;
+        }
+         .modal-tabs button.active {
+            color: #235937;
+            border-bottom-color: #235937;
+        }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
-
-    <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: { 'brand-green': '#235937' }
-                }
-            }
-        }
-    </script>
-    <style>
-        html { font-size: 16px; }
-        @media (max-width: 1920px) { html { font-size: 0.833vw; } }
-        @media (max-width: 1200px) { html { font-size: 10px; } }
-        @media (min-width: 2400px) { html { font-size: 18px; } }
-
-        body { font-family: 'Inter', sans-serif; width: 100vw; height: 100vh; margin: 0; padding: 0; overflow: hidden; background-color: #f9fafb; }
-        .app-wrapper { width: 100%; height: 100%; display: flex; flex-direction: column; }
-        header { flex-shrink: 0; }
-        main { flex-grow: 1; position: relative; min-height: 0; }
-        .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 1.5rem 2rem; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
-        .page-content.active { opacity: 1; pointer-events: auto; }
-        
-        #page-dashboard { display: flex; flex-direction: column; gap: 1rem; }
-        #page-dashboard > .grid { flex-grow: 1; min-height: 0; }
-        
-        #page-relatorio.page-content.active, #page-pedagogo.page-content.active { display: flex; flex-direction: column; gap: 1rem; }
-        #page-relatorio .grid, #page-pedagogo .grid { flex-grow: 1; min-height: 0; }
-
-
-        #sideMenu { background-color: #235937; top: 50%; transform: translate(-100%, -50%); transition: transform 0.3s ease-in-out; }
-        #sideMenu.show { transform: translate(0, -50%); }
-        #sideMenu a:hover { background-color: rgba(255, 255, 255, 0.2); transform: scale(1.1); }
-        .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
-        
-        .table-scroll-container { flex-grow: 1; position: relative; overflow-y: auto; }
-        .table-scroll-container table { position: absolute; width: 100%; }
-        
-        .filter-pill { padding: 0.5rem 1.25rem; border-radius: 9999px; font-weight: 500; cursor: pointer; transition: all 0.2s ease-in-out; background-color: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; user-select: none; }
-        .filter-pill:hover { background-color: #e5e7eb; }
-        .filter-pill.active { background-color: #235937; color: white; border-color: #235937; transform: scale(1.05); }
-
-        .modal-tab { padding: 0.5rem 1rem; font-weight: 600; color: #9ca3af; cursor: pointer; border-bottom: 3px solid transparent; transition: all 0.2s; }
-        .modal-tab:hover { color: #d1d5db; }
-        .modal-tab.active { color: white; border-bottom-color: white; }
-
-        #loading-overlay { transition: opacity 0.3s ease-in-out; }
-        .spinner { border: 4px solid rgba(0, 0, 0, 0.1); border-left-color: #235937; }
-        
-        #filter-badge { background-color: #235937; }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div id="loading-overlay" class="fixed inset-0 bg-gray-100 z-[100] flex flex-col items-center justify-center">
-        <div class="spinner h-12 w-12 animate-spin rounded-full"></div>
-        <p class="mt-4 text-lg font-semibold text-gray-600">Carregando dados...</p>
+
+    <div id="menu-trigger-zone"></div>
+
+    <nav id="side-menu">
+        <ul>
+            <li><a href="#inicio" class="menu-link active" title="Início"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg></a></li>
+            <li><a href="#relatorio" class="menu-link" title="Relatório"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg></a></li>
+            <li><a href="#pedagogos" class="menu-link" title="Pedagogos"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg></a></li>
+        </ul>
+    </nav>
+
+    <div id="dashboard-container">
+        <main id="inicio" class="content-section"></main>
+        <main id="relatorio" class="content-section hidden"></main>
+        <main id="pedagogos" class="content-section hidden"></main>
     </div>
 
-    <div class="app-wrapper">
-        <header class="p-6 z-30 flex items-center justify-between bg-gray-50/80 backdrop-blur-sm h-28">
-            <img src="Sistema-FAEP-SENAR-PR.png" alt="Logotipo" class="h-12 w-auto">
-            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <h1 id="main-title" class="text-2xl font-bold text-brand-green whitespace-nowrap">ACOMPANHAMENTO DE ENTREGAS</h1>
+    <!-- Modal de Detalhes do Curso -->
+    <div id="course-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-course-name" class="text-xl font-bold">Nome do Curso</h2>
+                <button id="modal-close-btn" class="modal-close-btn">&times;</button>
             </div>
-            <div class="flex items-center space-x-4">
-                <div class="relative">
-                    <select id="year-selector" class="w-32 bg-white border border-gray-200 text-gray-700 rounded-full py-2 px-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow appearance-none text-center font-semibold"></select>
-                </div>
-                <div class="relative">
-                    <div class="relative">
-                        <span class="absolute inset-y-0 left-0 flex items-center pl-3"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></span>
-                        <input type="text" id="search-input" placeholder="Buscar..." class="w-48 md:w-64 bg-white border border-gray-200 text-gray-700 rounded-full py-2 pl-10 pr-4 focus:outline-none focus:ring-2 focus:ring-brand-green transition-shadow" autocomplete="off">
-                    </div>
-                    <div id="search-suggestions" class="hidden absolute top-full mt-2 w-full bg-white rounded-lg shadow-xl z-20 border border-gray-200 max-h-60 overflow-y-auto"></div>
-                </div>
-                <div class="relative">
-                    <button id="notification-toggle" class="relative p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                        <span id="notification-badge" class="hidden absolute top-2 right-2 block h-2 w-2 rounded-full bg-brand-green ring-1 ring-white"></span>
-                    </button>
-                    <div id="notification-dropdown" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 border border-gray-200">
-                        <div class="p-3 font-bold text-gray-800 text-sm border-b">Notificações</div>
-                        <div class="py-1" id="notification-list"></div>
-                        <div class="p-2 border-t text-center bg-gray-50 rounded-b-lg"><a href="#" class="text-sm text-brand-green font-semibold hover:underline">Ver todas</a></div>
-                    </div>
-                </div>
-                <div class="relative">
-                    <button id="menu-toggle" class="p-3 bg-white border border-gray-200 rounded-full text-gray-600 hover:bg-gray-100 hover:text-brand-green focus:outline-none focus:ring-2 focus:ring-brand-green transition-colors">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    </button>
-                    <div id="menu-dropdown" class="hidden absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl z-20 py-1 border border-gray-200">
-                        <a href="https://www.sistemafaep.org.br/cursos-busca/" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>CATÁLOGO</a>
-                        <a href="https://app.powerbi.com/view?r=eyJrIjoiMzIwZDk3OTctY2QxNC00ZGY5LThmNDItNWMzYjBiMzU1OGY5IiwidCI6IjNmY2UyOTIxLTI0ZTgtNDhhOC1hOTI2LWJiMzhlZjkzOTY0MiJ9" target="_blank" rel="noopener noreferrer" class="group flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 hover:text-brand-green"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3 text-gray-400 group-hover:text-brand-green transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m-6 3l6-3m0 0l6 3m-6-3v10" /></svg>MAPA PARA OFÍCIOS</a>
-                    </div>
-                </div>
+             <div class="modal-tabs">
+                <button id="tab-detalhes" class="active">Detalhes</button>
+                <button id="tab-agenda">Agenda</button>
             </div>
-        </header>
-
-        <nav id="sideMenu" class="fixed left-0 w-16 text-white z-20 shadow-lg flex flex-col items-center justify-center space-y-6 p-4 rounded-r-3xl">
-            <a href="#" data-page="dashboard" class="page-link block p-3 rounded-xl transition-all duration-200" title="Início"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5.69l5 4.5V18h-2v-6H9v6H7v-7.81l5-4.5M12 3 2 12h3v8h6v-6h2v6h6v-8h3L12 3z"/></svg></a>
-            <a href="#" data-page="relatorio" class="page-link block p-3 rounded-xl transition-all duration-200" title="Relatório"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg></a>
-            <a href="#" data-page="pedagogo" class="page-link block p-3 rounded-xl transition-all duration-200" title="Pedagogo"><svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.91V17h2V9L12 3zm0 8.48L5.53 8.32 12 5.21l6.47 3.11L12 11.48zM5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg></a>
-        </nav>
-        
-        <div id="result-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-[60] hidden">
-            <div class="bg-white rounded-2xl shadow-xl w-full max-w-lg relative transform transition-all duration-300 scale-95 opacity-0 overflow-hidden" id="modal-content">
-                <div id="modal-header" class="p-6">
-                    <div class="flex justify-between items-start">
-                        <div class="flex items-center gap-4">
-                            <div id="modal-stage-indicator" class="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white font-bold text-sm"></div>
-                            <h2 id="modal-title" class="text-2xl font-bold text-white"></h2>
-                        </div>
-                        <button id="modal-close-btn" class="text-white/70 hover:text-white transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg></button>
-                    </div>
-                    <div id="modal-tabs" class="mt-4 flex items-center border-b border-white/20">
-                        <button data-tab="details" class="modal-tab active">Detalhes</button>
-                        <button data-tab="schedule" class="modal-tab">Cronograma</button>
-                    </div>
+            <div class="modal-body">
+                <div id="content-detalhes">
+                    <!-- Conteúdo preenchido via JS -->
                 </div>
-                <div class="p-8 max-h-[60vh] overflow-y-auto">
-                    <div id="modal-tab-content-details" class="space-y-5">
-                        <div class="border-b border-gray-200 pb-5">
-                            <div class="space-y-4 text-gray-700">
-                                <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Nível:</strong><span id="modal-level" class="font-semibold text-brand-green bg-brand-green/10 px-2 py-0.5 rounded-md text-sm"></span></div>
-                                <div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Lançamento:</strong><span id="modal-date" class="text-gray-800 font-medium"></span></div>
-                            </div>
-                        </div>
-                        <div class="border-b border-gray-200 pb-5">
-                            <div class="flex items-start"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Responsáveis:</strong><div class="text-gray-800 font-medium leading-relaxed"><span id="modal-tech"></span> <span class="text-xs text-gray-500">(Técnico)</span><br><span id="modal-pedagogue"></span> <span class="text-xs text-gray-500">(Pedagogo)</span></div></div>
-                        </div>
-                        <div><div class="flex"><strong class="font-semibold text-gray-500 w-36 flex-shrink-0">Etapa Atual:</strong><span id="modal-stage" class="text-gray-800 font-medium"></span></div></div>
-                    </div>
-                    <div id="modal-tab-content-schedule" class="hidden space-y-5"></div>
-                </div>
-            </div>
-        </div>
-
-        <main>
-            <div id="page-dashboard" class="page-content">
-                <div class="flex items-start space-x-6 flex-shrink-0">
-                    <div class="bg-white rounded-2xl shadow p-4 w-48 h-24 flex-shrink-0 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-xs font-semibold text-gray-600 text-center">META DE ENTREGAS</h3><p id="dashboard-meta-entregas" class="text-3xl font-bold text-brand-green mt-1">0</p>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (CURSOS NOVOS)</h3>
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="dashboard-progress-novos" class="bg-brand-green h-2.5 rounded-full" style="width: 0%"></div></div>
-                        <p id="dashboard-label-novos" class="text-right text-sm font-semibold text-gray-500 mt-1">0/0</p>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex-grow flex flex-col justify-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-xs font-semibold text-gray-600 text-center">TOTAL DE ENTREGAS (ATUALIZAÇÃO)</h3>
-                        <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2"><div id="dashboard-progress-atualizacoes" class="bg-brand-green h-2.5 rounded-full" style="width: 0%"></div></div>
-                        <p id="dashboard-label-atualizacoes" class="text-right text-sm font-semibold text-gray-500 mt-1">0/0</p>
-                    </div>
-                </div>
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-grow">
-                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">ETAPA ATUAL DOS CURSOS</h3>
-                        <div class="relative flex-grow"><canvas id="barChart"></canvas></div>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PLANEJAMENTO DE ENTREGAS</h3>
-                        <div class="relative flex-grow"><canvas id="lineChart"></canvas></div>
-                    </div>
-                    <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-pointer border-b-4 border-transparent hover:border-brand-green">
-                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">NÍVEL DOS CURSOS</h3>
-                        <div class="relative flex-grow flex items-center justify-center"><canvas id="donutChart"></canvas></div>
-                    </div>
-                    <div class="lg:col-span-3 bg-white rounded-2xl shadow p-6 flex flex-col">
-                        <h3 class="text-lg font-bold text-brand-green mb-4 flex-shrink-0">PRÓXIMOS LANÇAMENTOS</h3>
-                        <div id="carousel-container" class="relative group overflow-hidden rounded-lg flex-grow">
-                            <div id="slides-container" class="flex transition-transform duration-500 ease-in-out h-full"></div>
-                            <button id="prev-btn" class="absolute top-1/2 left-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg></button>
-                            <button id="next-btn" class="absolute top-1/2 right-2 -translate-y-1/2 bg-black/30 text-white p-2 rounded-full hover:bg-black/50 transition opacity-0 group-hover:opacity-100"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg></button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="page-relatorio" class="page-content">
-                <div class="grid grid-cols-2 md:grid-cols-5 gap-4 flex-shrink-0">
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">TOTAL</h3><p id="card-total" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">NOVOS</h3><p id="card-novos" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ATUALIZAÇÕES</h3><p id="card-atualizacoes" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">ENTREGUES</h3><p id="card-entregues" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                    <div class="bg-white rounded-2xl shadow p-4 h-24 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green"><h3 class="text-xs font-semibold text-gray-600">RESTANTES</h3><p id="card-restantes" class="text-3xl font-bold text-brand-green mt-1">0</p></div>
-                </div>
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-4 flex-grow">
-                    <div class="xl:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
-                        <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                            <h3 class="text-lg font-bold text-brand-green">ACOMPANHAMENTO DETALHADO</h3>
-                            <button id="filter-table-btn" class="relative text-gray-500 hover:text-brand-green p-1 rounded-full hover:bg-gray-100 transition-colors">
-                                <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3c2.755 0 5.455.232 8.083.678.533.09.917.556.917 1.096v1.044a2.25 2.25 0 0 1-.659 1.591l-5.432 5.432a2.25 2.25 0 0 0-.659 1.591v2.927a2.25 2.25 0 0 1-1.244 2.013L9.75 21v-6.572a2.25 2.25 0 0 0-.659-1.591L3.659 7.409A2.25 2.25 0 0 1 3 5.818V4.774c0-.54.384-1.006.917-1.096A48.32 48.32 0 0 1 12 3Z" /></svg>
-                                <span id="filter-badge" class="hidden absolute -top-1 -right-1 w-4 h-4 text-white text-xs font-bold rounded-full flex items-center justify-center"></span>
-                            </button>
-                        </div>
-                        <div class="table-scroll-container">
-                            <table class="w-full text-sm text-left text-gray-600">
-                                <thead class="text-xs text-gray-700 uppercase bg-gray-100 sticky top-0 z-10">
-                                    <tr>
-                                        <th scope="col" class="px-4 py-3"></th>
-                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="nome">Curso</th>
-                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="nivel">Nível</th>
-                                        <th scope="col" class="px-4 py-3">Tipo</th>
-                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="pedagogo">Pedagogo</th>
-                                        <th scope="col" class="px-4 py-3 sortable-header" data-sort="dataDisponivel">Disponível em</th>
-                                        <th scope="col" class="px-4 py-3">Etapa Atual</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="report-table-body"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="flex flex-col gap-4">
-                        <div class="bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green flex-grow">
-                            <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                                <h3 class="text-lg font-bold text-brand-green">CALENDÁRIO</h3>
-                                <button id="expand-calendar-btn" class="text-sm font-semibold text-brand-green hover:underline">Expandir</button>
-                            </div>
-                            <div id="calendar-container" class="flex-grow"></div>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl cursor-default border-b-4 border-transparent hover:border-brand-green">
-                            <div id="kpi-speedometer-container"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="page-pedagogo" class="page-content">
-                <div id="pedagogo-filter-container" class="flex justify-center gap-4 flex-shrink-0"></div>
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow">
-                    <div class="md:col-span-1 flex flex-col gap-4">
-                        <div class="bg-white rounded-2xl shadow p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
-                            <h3 class="text-lg font-bold text-brand-green mb-4 text-center">ACOMPANHAMENTOS</h3>
-                            <div class="space-y-4 text-center">
-                                <div>
-                                    <p class="font-bold text-gray-800 text-lg">Formação</p>
-                                    <p id="pedagogo-card-formacao" class="text-2xl font-bold text-gray-600">0</p>
-                                </div>
-                                <hr>
-                                <div>
-                                    <p class="font-bold text-gray-800 text-lg">Piloto</p>
-                                    <p id="pedagogo-card-piloto" class="text-2xl font-bold text-gray-600">0</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="bg-white rounded-2xl shadow p-6 flex flex-col flex-grow transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green overflow-hidden">
-                            <h3 class="text-lg font-bold text-brand-green mb-4 text-center">OUTRAS ATIVIDADES</h3>
-                            <div class="space-y-2 overflow-y-auto pr-2" id="pedagogo-outras-atividades"></div>
-                        </div>
-                    </div>
-                    <div class="md:col-span-2 bg-white rounded-2xl shadow p-6 flex flex-col transition-all duration-300 hover:-translate-y-1 hover:shadow-xl border-b-4 border-transparent hover:border-brand-green">
-                        <div id="pedagogo-calendar-container" class="flex flex-col h-full"></div>
-                    </div>
-                </div>
-            </div>
-        </main>
-
-        <div id="calendar-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-            <div id="calendar-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-6xl h-[90vh] relative transform transition-all duration-300 scale-95 opacity-0 flex flex-col p-6">
-                <div class="flex justify-between items-center mb-4 flex-shrink-0">
-                    <div class="flex items-center space-x-4">
-                        <button id="expanded-calendar-prev-month" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button>
-                        <h2 id="expanded-calendar-title" class="text-2xl font-bold text-brand-green text-center w-48"></h2>
-                        <button id="expanded-calendar-next-month" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button>
-                    </div>
-                    <button id="calendar-modal-close-btn" class="text-gray-500 hover:text-gray-800 transition-colors"><svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg></button>
-                </div>
-                <div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0">
-                    <div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div>
-                </div>
-                <div id="expanded-calendar-grid" class="grid grid-cols-7 grid-rows-6 flex-grow gap-1 overflow-y-auto pr-2"></div>
-            </div>
-        </div>
-        
-        <div id="filter-modal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 hidden">
-            <div id="filter-modal-content" class="bg-white rounded-2xl shadow-xl w-full max-w-4xl relative transform transition-all duration-300 scale-95 opacity-0 p-8">
-                <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-xl font-bold text-brand-green">Filtrar Cursos</h2>
-                    <button id="filter-modal-close-btn" class="text-gray-400 hover:text-gray-800"><svg class="w-6 h-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg></button>
-                </div>
-                <div class="space-y-6">
-                    <div>
-                        <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Etapa</h3>
-                        <div id="filter-stage-options" class="flex flex-wrap gap-3"></div>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Técnico</h3>
-                        <div id="filter-tech-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
-                    </div>
-                    <div>
-                        <h3 class="font-semibold mb-3 text-gray-700 border-b pb-2">Pedagogo</h3>
-                        <div id="filter-pedagogue-options" class="flex flex-wrap gap-3 max-h-40 overflow-y-auto"></div>
-                    </div>
-                </div>
-                <div class="flex justify-end gap-4 mt-8 pt-6 border-t">
-                    <button id="filter-clear-btn" class="text-sm font-semibold text-gray-600 hover:underline">Limpar Filtros</button>
-                    <button id="filter-apply-btn" class="bg-brand-green text-white px-6 py-2 rounded-lg font-semibold hover:bg-opacity-90 transition-colors">Aplicar</button>
+                <div id="content-agenda" class="hidden">
+                    <!-- Conteúdo preenchido via JS -->
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            let apiData = null;
-            let chartInstances = {};
-            const API_URL = "https://entregas-api.vercel.app/api/dados";
-            const stageNameMapping = { "Prospecção e Contratação de Especialistas": "Etapa 1", "Edital de Credenciamento": "Etapa 2", "Curso Piloto": "Etapa 3", "Formação de Instrutores": "Etapa 4", "Entrega Técnica": "Etapa 5", "Lançamento a Campo": "Etapa 6" };
+        document.addEventListener('DOMContentLoaded', function() {
+            const API_URL = 'https://entregas-api.vercel.app/api/dados';
+            let dashboardData = null; 
+            let selectedYear = 'all';
+            let charts = {}; // Objeto para armazenar instâncias dos gráficos
+            let carouselInterval;
 
-            async function fetchData() {
+            // --- FUNÇÕES DE RENDERIZAÇÃO ---
+            
+            function generateHeaderHTML(currentYear, allCourses) {
+                const years = [...new Set(allCourses.map(c => c.anoDisponivel).filter(y => y))].sort((a, b) => b - a);
+                let yearOptions = '<option value="all">Geral</option>';
+                years.forEach(year => {
+                    yearOptions += `<option value="${year}" ${year == currentYear ? 'selected' : ''}>${year}</option>`;
+                });
+
+                return `
+                    <header class="flex-shrink-0 flex justify-between items-center p-4 border-b bg-white">
+                        <div><img src="https://i.imgur.com/ruDtZT7.png" alt="Logo SENAR" class="h-10"></div>
+                        <div class="text-lg font-bold text-gray-700">ACOMPANHAMENTO DE ENTREGAS</div>
+                        <div class="flex items-center gap-4">
+                            <div>
+                                <select class="year-selector border rounded-full text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-800/50 bg-gray-50">
+                                    ${yearOptions}
+                                </select>
+                            </div>
+                             <div class="relative">
+                                <input type="text" class="search-bar w-72 pl-10 pr-4 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-800/50" placeholder="Buscar curso...">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
+                                <div class="search-suggestions hidden absolute mt-1 w-full bg-white rounded-lg shadow-xl z-10 border max-h-60 overflow-y-auto"></div>
+                            </div>
+                            <div class="relative">
+                                <button class="menu-button p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50"><svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+                                <div class="menu-dropdown hidden absolute right-0 mt-2 w-60 bg-white rounded-lg shadow-xl z-10 border">
+                                    <a href="https://www.sistemafaep.org.br/cursos-busca/" target="_blank" rel="noopener noreferrer" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg">Catálogo</a>
+                                    <a href="https://app.powerbi.com/view?r=eyJrIjoiMzIwZDk3OTctY2QxNC00ZGY5LThmNDItNWMzYjBiMzU1OGY5IiwidCI6IjNmY2UyOTIxLTI0ZTgtNDhhOC1hOTI2LWJiMzhlZjkzOTY0MiJ9" target="_blank" rel="noopener noreferrer" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg">Mapa para Ofícios</a>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+                `;
+            }
+
+            function generateTopCardsHTML(indicadores) {
+                const novosPercent = (indicadores.totalNovos > 0) ? Math.round((indicadores.novosEntregues / indicadores.totalNovos) * 100) : 0;
+                const atualizacoesPercent = (indicadores.totalAtualizacoes > 0) ? Math.round((indicadores.atualizacoesEntregues / indicadores.totalAtualizacoes) * 100) : 0;
+
+                return `
+                    <div class="grid grid-cols-5 gap-6">
+                        <!-- Meta Card -->
+                        <div class="col-span-1 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center items-center text-center">
+                             <p class="text-sm font-medium text-gray-500 leading-tight">Meta de Entregas</p>
+                             <p class="text-4xl font-bold text-gray-800">${indicadores.meta_entregas || 0}</p>
+                        </div>
+
+                        <!-- Cursos Novos Card -->
+                        <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-sm font-medium text-gray-500">Entregas (Cursos Novos)</p>
+                                <p class="text-sm font-semibold text-gray-700">${indicadores.novosEntregues || 0} / ${indicadores.totalNovos || 0} <span class="text-gray-500 font-medium">(${novosPercent}%)</span></p>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-5">
+                                <div class="h-5 rounded-full" style="width: ${novosPercent}%; background-color: #235937;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Atualizações Card -->
+                        <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-sm font-medium text-gray-500">Entregas (Atualizações)</p>
+                                <p class="text-sm font-semibold text-gray-700">${indicadores.atualizacoesEntregues || 0} / ${indicadores.totalAtualizacoes || 0} <span class="text-gray-500 font-medium">(${atualizacoesPercent}%)</span></p>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-5">
+                                <div class="h-5 rounded-full" style="width: ${atualizacoesPercent}%; background-color: #235937;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function generateCarouselHTML(proximosLancamentos) {
+                if (!proximosLancamentos || proximosLancamentos.length === 0) return '';
+                
+                const hoje = new Date();
+                const dezProximos = proximosLancamentos
+                    .filter(c => new Date(c.dataLancamento) >= hoje)
+                    .sort((a, b) => new Date(a.dataLancamento) - new Date(b.dataLancamento))
+                    .slice(0, 10);
+                
+                if (dezProximos.length === 0) return `<div class="bg-white p-6 rounded-lg border border-gray-200 text-center text-gray-500">Nenhum lançamento futuro encontrado.</div>`;
+
+                const items = dezProximos.map(curso => {
+                    const data = new Date(curso.dataLancamento).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+                    const formattedDate = data.charAt(0).toUpperCase() + data.slice(1);
+                    return `
+                        <div class="carousel-item" data-course-name="${curso.nome}" data-course-level="${curso.nivel}">
+                            <div class="bg-[rgba(35,89,55,0.1)] p-4 rounded-lg border border-gray-200 h-full flex flex-col">
+                                <p class="font-bold text-gray-800 text-sm leading-tight">${curso.nome}</p>
+                                <p class="text-xs text-gray-500 mt-1">${curso.nivel || 'Nível não definido'}</p>
+                                <div class="mt-auto pt-2 text-xs font-semibold text-[#235937]">${formattedDate}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="bg-white p-6 rounded-lg border border-gray-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-gray-700">Próximos Lançamentos</h2>
+                        </div>
+                        <div class="carousel-wrapper">
+                            <div class="carousel-container">
+                                <div id="carousel-track" class="carousel-track -mx-3">
+                                    ${items}
+                                </div>
+                            </div>
+                             <button id="prev-btn" class="carousel-btn prev">
+                                <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <button id="next-btn" class="carousel-btn next">
+                                <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+
+            function renderInicio(indicadores, analiseDoAno, proximosLancamentos) {
+                const container = document.getElementById('inicio');
+                container.innerHTML = `
+                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                    <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
+                        <div class="flex-shrink-0">
+                            ${generateTopCardsHTML(indicadores)}
+                        </div>
+                        <div class="flex-grow grid grid-cols-3 gap-6 min-h-0">
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="etapasChart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="trimestreChart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="nivelChart"></canvas></div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            ${generateCarouselHTML(proximosLancamentos)}
+                        </div>
+                    </div>
+                `;
+                renderCharts(analiseDoAno);
+                setupCarousel(proximosLancamentos);
+            }
+
+            function renderCharts(analiseDoAno) {
+                Chart.register(ChartDataLabels);
+                renderEtapasChart(analiseDoAno.cursosPorEtapa || {});
+                renderTrimestreChart(analiseDoAno.planejamentoTrimestral || {});
+                renderNivelChart(analiseDoAno.cursosPorNivel || {});
+            }
+
+            function renderEtapasChart(data) {
+                if (charts.etapas) charts.etapas.destroy();
+                const ctx = document.getElementById('etapasChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const labelsOriginal = ["Etapa 1", "Etapa 2", "Etapa 3", "Etapa 4", "Etapa 5", "Etapa 6", "Entregue"];
+                const labels = labelsOriginal.filter(l => l !== 'Entregue');
+                const chartData = labels.map(label => data[label] || 0);
+                const maxValue = Math.max(...chartData, 0);
+
+                charts.etapas = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: chartData, backgroundColor: 'rgba(35, 89, 55, 0.7)' }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            title: { display: true, text: 'Etapa Atual dos Cursos', font: { size: 18 } },
+                            legend: { display: false },
+                            datalabels: { anchor: 'end', align: 'end', color: '#4b5563', font: { weight: 'bold' } }
+                        }, 
+                        scales: { 
+                            y: { beginAtZero: true, grid: { drawBorder: false }, suggestedMax: maxValue + 5, ticks: { stepSize: 10 } },
+                            x: { grid: { display: false } }
+                        } 
+                    }
+                });
+            }
+
+            function renderTrimestreChart(data) {
+                if (charts.trimestre) charts.trimestre.destroy();
+                const ctx = document.getElementById('trimestreChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                let labels = [];
+                let chartData = [];
+
+                if (selectedYear === 'all') {
+                    const years = Object.keys(dashboardData.analises).filter(y => y !== 'Total').sort();
+                    years.forEach(year => {
+                        const trimestres = dashboardData.analises[year].planejamentoTrimestral || {};
+                        for (let i = 1; i <= 4; i++) {
+                            labels.push(`${i}º Tri/${year.slice(-2)}`);
+                            chartData.push(trimestres[`T${i}`] || 0);
+                        }
+                    });
+                } else {
+                    labels = ["1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre"];
+                    chartData = labels.map((_, i) => data[`T${i+1}`] || 0);
+                }
+                const maxValue = Math.max(...chartData, 0);
+                
+                charts.trimestre = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: chartData, fill: true, backgroundColor: 'rgba(35, 89, 55, 0.7)', borderColor: '#235937', tension: 0.4 }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            title: { display: true, text: 'Planejamento de Entregas', font: { size: 18 } },
+                            legend: { display: false },
+                            datalabels: { anchor: 'end', align: 'end', color: '#235937', font: { weight: 'bold' } }
+                        }, 
+                        scales: { 
+                            y: { beginAtZero: true, grid: { drawBorder: false }, suggestedMax: maxValue + 5, ticks: { stepSize: 10 } },
+                            x: { grid: { display: false } }
+                        } 
+                    }
+                });
+            }
+
+            function renderNivelChart(data) {
+                if (charts.nivel) charts.nivel.destroy();
+                const ctx = document.getElementById('nivelChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const labels = Object.keys(data);
+                const chartData = Object.values(data);
+                const backgroundColors = labels.map((_, i) => `rgba(35, 89, 55, ${1 - i * 0.15})`);
+
+                charts.nivel = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: chartData, backgroundColor: backgroundColors, borderColor: '#ffffff', borderWidth: 2 }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            title: { display: true, text: 'Nível dos Cursos', font: { size: 18 } },
+                            legend: { position: 'bottom' },
+                             datalabels: {
+                                formatter: (value, ctx) => {
+                                    let sum = 0;
+                                    ctx.chart.data.datasets[0].data.forEach(d => { sum += d; });
+                                    if (sum === 0) return '0%';
+                                    let percentage = (value * 100 / sum).toFixed(0) + "%";
+                                    return percentage;
+                                },
+                                color: '#fff',
+                            }
+                        } 
+                    }
+                });
+            }
+            
+            function setupCarousel(proximosLancamentos) {
+                if (carouselInterval) clearInterval(carouselInterval);
+                const track = document.getElementById('carousel-track');
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+
+                const proximos = proximosLancamentos
+                    .filter(c => new Date(c.dataLancamento) >= new Date())
+                    .sort((a, b) => new Date(a.dataLancamento) - new Date(b.dataLancamento))
+                    .slice(0, 10);
+                
+                if (!track || proximos.length <= 5) {
+                    if (prevBtn) prevBtn.style.display = 'none';
+                    if (nextBtn) nextBtn.style.display = 'none';
+                    return;
+                }
+                
+                let index = 0;
+                const totalItems = track.children.length;
+                const maxIndex = totalItems - 5;
+
+                function updateCarousel() {
+                    track.style.transform = `translateX(-${index * (100 / 5)}%)`;
+                }
+
+                function resetAndStartInterval() {
+                    clearInterval(carouselInterval);
+                    carouselInterval = setInterval(() => {
+                        index++;
+                        if (index > maxIndex) {
+                            index = 0;
+                        }
+                        updateCarousel();
+                    }, 4000);
+                }
+
+                prevBtn.addEventListener('click', () => {
+                    index--;
+                    if (index < 0) {
+                        index = maxIndex;
+                    }
+                    updateCarousel();
+                    resetAndStartInterval();
+                });
+
+                nextBtn.addEventListener('click', () => {
+                    index++;
+                    if (index > maxIndex) {
+                        index = 0;
+                    }
+                    updateCarousel();
+                    resetAndStartInterval();
+                });
+
+                resetAndStartInterval();
+            }
+
+            function renderRelatorios() {
+                 document.getElementById('relatorio').innerHTML = `
+                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                     <div class="flex-grow p-6 main-content-area">
+                        <!-- Área de conteúdo para design da aba Relatório -->
+                    </div>
+                `;
+            }
+
+            function renderPedagogos() {
+                document.getElementById('pedagogos').innerHTML = `
+                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                     <div class="flex-grow p-6 main-content-area">
+                        <!-- Área de conteúdo para design da aba Pedagogos -->
+                    </div>
+                `;
+            }
+            
+            function updateDashboardView() {
+                if (!dashboardData) return;
+
+                const yearKey = selectedYear === 'all' ? 'Total' : selectedYear;
+                const analiseDoAno = dashboardData.analises[yearKey] || { totalEntregas: {}, metaEntregas: 0, cursosPorEtapa: {}, planejamentoTrimestral: {}, cursosPorNivel: {} };
+                const entregas = analiseDoAno.totalEntregas || {};
+
+                const indicadores = {
+                    meta_entregas: analiseDoAno.metaEntregas,
+                    totalNovos: entregas.totalNovos,
+                    novosEntregues: entregas.novosEntregues,
+                    totalAtualizacoes: entregas.totalAtualizacoes,
+                    atualizacoesEntregues: entregas.atualizacoesEntregues,
+                };
+                
+                const proximosLancamentos = dashboardData.proximosLancamentos || [];
+
+                renderInicio(indicadores, analiseDoAno, proximosLancamentos);
+                renderRelatorios();
+                renderPedagogos();
+
+                const activeLink = document.querySelector('.menu-link.active');
+                const activeTabId = activeLink ? activeLink.getAttribute('href').substring(1) : 'inicio';
+                
+                document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+                document.getElementById(activeTabId)?.classList.remove('hidden');
+            }
+
+            // --- Lógica do Modal ---
+            function openModal(courseName, courseLevel) {
+                // Reset tabs
+                document.getElementById('tab-detalhes').classList.add('active');
+                document.getElementById('tab-agenda').classList.remove('active');
+                document.getElementById('content-detalhes').classList.remove('hidden');
+                document.getElementById('content-agenda').classList.add('hidden');
+
+                const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
+                if (!course) return;
+
+                const percentual = course.indicadorReal ? `${(course.indicadorReal * 100).toFixed(0)}%` : '';
+                const dataEntrega = course.dataDisponivel ? new Date(course.dataDisponivel).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
+                const formattedEntrega = dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1);
+
+                 // Dynamic Header Color
+                const modalHeader = document.querySelector('#course-modal .modal-header');
+                const percentageValue = course.indicadorReal ? course.indicadorReal * 100 : -1;
+                let headerColor = '#6b7280'; // Default gray
+                if (percentageValue >= 0 && percentageValue <= 5) headerColor = '#6b7280'; // gray-500
+                else if (percentageValue >= 6 && percentageValue <= 15) headerColor = '#ef4444'; // red-500
+                else if (percentageValue >= 16 && percentageValue <= 30) headerColor = '#f97316'; // orange-500
+                else if (percentageValue >= 31 && percentageValue <= 70) headerColor = '#4d7c0f'; // lime-500 - Adjusted green
+                else if (percentageValue > 70) headerColor = '#235937'; // dark green
+                modalHeader.style.backgroundColor = headerColor;
+
+
+                document.getElementById('modal-course-name').innerHTML = `
+                    <span class="text-xl font-bold">${course.nome}</span>
+                    <div class="flex items-center gap-4 ml-auto text-sm">
+                        ${percentual ? `<span class="font-normal bg-white/20 px-2 py-1 rounded-md">Indicador: ${percentual}</span>` : ''}
+                        <span class="font-normal bg-white/20 px-2 py-1 rounded-md">Entrega: ${formattedEntrega}</span>
+                    </div>
+                `;
+                
+                document.getElementById('content-detalhes').innerHTML = `
+                     <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                        <div class="col-span-2 p-3 bg-white border rounded-md">
+                            <p class="text-gray-500 font-semibold">Etapa Atual</p>
+                            <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 font-semibold">Nível do Curso</p>
+                            <p class="text-gray-900">${course.nivel || 'N/D'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 font-semibold">Tipo</p>
+                            <p class="text-gray-900">${course.tipo || 'N/D'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 font-semibold">Técnico Responsável</p>
+                            <p class="text-gray-900">${course.tecnico || 'N/D'}</p>
+                        </div>
+                        <div>
+                            <p class="text-gray-500 font-semibold">Pedagogo Responsável</p>
+                            <p class="text-gray-900">${course.pedagogo || 'N/D'}</p>
+                        </div>
+                    </div>
+                `;
+                
+                const allEvents = new Map();
+                const toDateKey = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
+                
+                const mainCourseEvents = dashboardData.fullCronograma.filter(c => c.nome === courseName && c.nivel === courseLevel);
+                mainCourseEvents.forEach(c => {
+                    if (c.pilotoInicio && c.pilotoFim) {
+                        const key = `piloto-${toDateKey(c.pilotoInicio)}-${toDateKey(c.pilotoFim)}`;
+                        if (!allEvents.has(key)) {
+                            allEvents.set(key, { type: 'Piloto', inicio: c.pilotoInicio, fim: c.pilotoFim });
+                        }
+                    }
+                    if (c.formacaoInicio && c.formacaoFim) {
+                         const key = `formacao-${toDateKey(c.formacaoInicio)}-${toDateKey(c.formacaoFim)}`;
+                         if (!allEvents.has(key)) {
+                            allEvents.set(key, { type: 'Formação', inicio: c.formacaoInicio, fim: c.formacaoFim });
+                         }
+                    }
+                });
+                
+                const formationEvents = dashboardData.formacoes.filter(f => f.curso.includes(courseName));
+                 formationEvents.forEach(f => {
+                    if (f.inicio && f.fim) {
+                        const key = `formacao-${toDateKey(f.inicio)}-${toDateKey(f.fim)}`;
+                        if (!allEvents.has(key)) {
+                            allEvents.set(key, { type: 'Formação', inicio: f.inicio, fim: f.fim });
+                        }
+                    }
+                });
+
+                const sortedEvents = Array.from(allEvents.values()).sort((a,b) => new Date(a.inicio) - new Date(b.inicio));
+
+                const agendaContent = document.getElementById('content-agenda');
+                if (sortedEvents.length > 0) {
+                    const today = new Date();
+                    today.setHours(0,0,0,0);
+                    
+                    agendaContent.innerHTML = sortedEvents.map(event => {
+                        const endDate = new Date(event.fim);
+                        const isPast = endDate < today;
+                        const dateClass = isPast ? 'text-gray-400' : 'text-gray-800 font-semibold';
+                        const iconColor = isPast ? 'bg-gray-300 text-gray-600' : 'bg-green-100 text-green-800';
+                        
+                        let eventTypeLabel = '';
+                        let iconSvg = '';
+
+                        switch (event.type) {
+                            case 'Piloto':
+                                eventTypeLabel = 'Piloto';
+                                iconSvg = `<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>`;
+                                break;
+                            case 'Formação':
+                                eventTypeLabel = 'Formação';
+                                iconSvg = `<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>`;
+                                break;
+                        }
+                        
+                        return `
+                            <div class="flex items-center p-3 rounded-md mb-2 ${isPast ? 'opacity-60' : ''}">
+                                <div class="flex-shrink-0 w-10 h-10 rounded-full ${iconColor} flex items-center justify-center font-bold mr-4 text-sm">
+                                    ${iconSvg}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-700">${eventTypeLabel}</p>
+                                    <p class="${dateClass} text-sm">${new Date(event.inicio).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${new Date(event.fim).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    agendaContent.innerHTML = `<p class="text-center text-gray-500 py-4">Nenhuma data de piloto ou formação encontrada.</p>`;
+                }
+                
+                document.getElementById('course-modal').classList.remove('hidden');
+            }
+
+            document.getElementById('modal-close-btn').addEventListener('click', () => {
+                document.getElementById('course-modal').classList.add('hidden');
+            });
+
+            document.getElementById('tab-detalhes').addEventListener('click', () => {
+                document.getElementById('tab-detalhes').classList.add('active');
+                document.getElementById('tab-agenda').classList.remove('active');
+                document.getElementById('content-detalhes').classList.remove('hidden');
+                document.getElementById('content-agenda').classList.add('hidden');
+            });
+             document.getElementById('tab-agenda').addEventListener('click', () => {
+                document.getElementById('tab-agenda').classList.add('active');
+                document.getElementById('tab-detalhes').classList.remove('active');
+                document.getElementById('content-agenda').classList.remove('hidden');
+                document.getElementById('content-detalhes').classList.add('hidden');
+            });
+
+
+            document.body.addEventListener('click', function(e) {
+                const menuButton = e.target.closest('.menu-button');
+                if (menuButton) {
+                    const dropdown = menuButton.nextElementSibling;
+                    dropdown.classList.toggle('hidden');
+                    document.querySelectorAll('.menu-dropdown').forEach(d => { if (d !== dropdown) d.classList.add('hidden'); });
+                } else if (!e.target.closest('.menu-dropdown')) {
+                     document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.add('hidden'));
+                }
+
+                const menuLink = e.target.closest('.menu-link');
+                if (menuLink) {
+                    e.preventDefault();
+                    document.querySelectorAll('.menu-link').forEach(item => item.classList.remove('active'));
+                    menuLink.classList.add('active');
+                    const targetId = menuLink.getAttribute('href').substring(1);
+                    document.querySelectorAll('.content-section').forEach(section => section.classList.add('hidden'));
+                    document.getElementById(targetId)?.classList.remove('hidden');
+                }
+                
+                const searchResult = e.target.closest('.search-suggestion-item');
+                const carouselItem = e.target.closest('.carousel-item');
+                if (searchResult || carouselItem) {
+                    e.preventDefault();
+                    const courseName = (searchResult || carouselItem).dataset.courseName;
+                    const courseLevel = (searchResult || carouselItem).dataset.courseLevel;
+                    openModal(courseName, courseLevel);
+
+                    const activeSection = document.querySelector('.content-section:not(.hidden)');
+                    if (activeSection) {
+                        const searchBar = activeSection.querySelector('.search-bar');
+                        const suggestionsContainer = activeSection.querySelector('.search-suggestions');
+                        if(searchBar) searchBar.value = '';
+                        if(suggestionsContainer) suggestionsContainer.classList.add('hidden');
+                    }
+                }
+            });
+            
+             document.body.addEventListener('input', function(e) {
+                const searchBar = e.target.closest('.search-bar');
+                 if (searchBar && dashboardData) {
+                    const suggestionsContainer = searchBar.parentElement.querySelector('.search-suggestions');
+                    const query = searchBar.value.toLowerCase();
+                    const yearToFilter = selectedYear === 'all' ? null : parseInt(selectedYear);
+
+                    if (query.length < 2) {
+                        suggestionsContainer.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const filtered = dashboardData.cronograma.filter(c => {
+                        const matchesQuery = c.curso.toLowerCase().includes(query);
+                        const matchesYear = !yearToFilter || c.anoDisponivel === yearToFilter;
+                        return matchesQuery && matchesYear;
+                    });
+                    
+                    if(filtered.length > 0) {
+                        suggestionsContainer.innerHTML = filtered.map(c => `<a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 search-suggestion-item" data-course-name="${c.curso}" data-course-level="${c.nivel}">${c.curso} | <span class="text-gray-500">${c.nivel || 'N/D'}</span></a>`).join('');
+                        suggestionsContainer.classList.remove('hidden');
+                    } else {
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                }
+            });
+
+            document.body.addEventListener('change', function(e) {
+                if (e.target.classList.contains('year-selector')) {
+                    selectedYear = e.target.value;
+                    updateDashboardView();
+                }
+            });
+
+            async function initialize() {
                 try {
                     const response = await fetch(API_URL);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                    apiData = await response.json();
+                    const apiResponse = await response.json();
                     
-                    const parseDates = (item, dateFields) => {
-                        dateFields.forEach(field => { if(item[field]) item[field] = new Date(item[field]); });
-                        return item;
+                    if (!apiResponse || typeof apiResponse !== 'object' || !apiResponse.dadosProcessados || !Array.isArray(apiResponse.dadosProcessados.cursos)) {
+                         throw new Error("A estrutura dos dados recebidos da API é inválida ou a resposta está vazia.");
+                    }
+                    
+                    const transformedCronograma = apiResponse.dadosProcessados.cursos.map(c => ({
+                        curso: c.nome,
+                        responsavel: c.pedagogo || c.tecnico || 'Não definido',
+                        data_inicio: c.pilotoInicio || c.formacaoInicio,
+                        data_fim: c.dataLancamento || c.dataDisponivel,
+                        progresso: c.percentual || 0,
+                        status: c.etapaAtual,
+                        nivel: c.nivel,
+                        anoDisponivel: c.anoDisponivel
+                    }));
+
+                    dashboardData = {
+                        analises: apiResponse.analises,
+                        cronograma: transformedCronograma,
+                        proximosLancamentos: apiResponse.proximosLancamentos || [],
+                        fullCronograma: apiResponse.dadosProcessados.cursos || [],
+                        eventosCalendario: apiResponse.eventosCalendario || [],
+                        formacoes: apiResponse.dadosProcessados.formacoes || []
                     };
-                    apiData.dadosProcessados.cursos.forEach(c => parseDates(c, ['dataDisponivel', 'pilotoInicio', 'pilotoFim', 'formacaoInicio', 'formacaoFim']));
-                    apiData.dadosProcessados.formacoes.forEach(f => parseDates(f, ['inicio', 'fim']));
-                    apiData.dadosProcessados.eventos.forEach(e => parseDates(e, ['inicio', 'fim']));
-                    apiData.dadosProcessados.outrasAtividades.forEach(a => parseDates(a, ['inicio', 'fim']));
-                    return true;
+                    
+                    selectedYear = new Date().getFullYear().toString(); 
+                    updateDashboardView();
                 } catch (error) {
-                    console.error("Falha ao buscar dados da API:", error);
-                    document.body.innerHTML = `<div class="w-screen h-screen flex items-center justify-center text-center p-8"><h1 class="text-2xl font-bold text-red-600">Erro ao carregar os dados do dashboard. <br>Por favor, tente novamente mais tarde.</h1></div>`;
-                    return false;
-                }
-            }
-            
-            function getCalendarEvents(cursos, formacoes) {
-                const allEvents = [];
-                const addedFormations = new Set();
-
-                cursos.forEach(c => {
-                    if (c.pilotoInicio && c.pilotoFim) {
-                        allEvents.push({ type: 'Piloto', start: c.pilotoInicio, end: c.pilotoFim, course: c, color: 'bg-orange-300 text-orange-800' });
-                    }
-                    if (c.formacaoInicio && c.formacaoFim) {
-                        const uniqueId = `${c.nome}-${c.formacaoInicio.getTime()}`;
-                        if (!addedFormations.has(uniqueId)) {
-                             allEvents.push({ type: 'Formação', start: c.formacaoInicio, end: c.formacaoFim, course: c, color: 'bg-pink-300 text-pink-800' });
-                             addedFormations.add(uniqueId);
-                        }
-                    }
-                });
-                formacoes.forEach(f => {
-                    const cursoOriginal = cursos.find(c => c.nome === f.curso);
-                    if (cursoOriginal && f.inicio && f.fim) {
-                        const uniqueId = `${cursoOriginal.nome}-${f.inicio.getTime()}`;
-                         if (!addedFormations.has(uniqueId)) {
-                            allEvents.push({ type: 'Formação', start: f.inicio, end: f.fim, course: cursoOriginal, color: 'bg-pink-300 text-pink-800' });
-                            addedFormations.add(uniqueId);
-                        }
-                    }
-                });
-                return allEvents;
-            }
-
-            function renderCalendarGrid(gridElement, referenceDate, cursos, formacoes) {
-                const month = referenceDate.getMonth();
-                const year = referenceDate.getFullYear();
-                gridElement.innerHTML = '';
-
-                const firstDayOfMonth = new Date(year, month, 1);
-                const lastDayOfMonth = new Date(year, month + 1, 0);
-                const startDate = new Date(firstDayOfMonth);
-                startDate.setDate(startDate.getDate() - startDate.getDay());
-                const endDate = new Date(lastDayOfMonth);
-                if (endDate.getDay() !== 6) {
-                    endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
-                }
-
-                const allEvents = getCalendarEvents(cursos, formacoes);
-                
-                for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-                    const cell = document.createElement('div');
-                    cell.className = 'border-t border-l p-1 flex flex-col gap-1 text-xs relative ' + (d.getMonth() !== month ? 'bg-gray-50' : '');
-                    const dayNumber = document.createElement('span');
-                    dayNumber.className = 'font-semibold mb-1 w-6 h-6 flex items-center justify-center self-end z-10';
-                    dayNumber.textContent = d.getDate();
-                    if (d.toDateString() === new Date().toDateString()) dayNumber.className += ' bg-brand-green text-white rounded-full';
-                    cell.appendChild(dayNumber);
-
-                    let eventTop = 35;
-                    allEvents.forEach(event => {
-                         if (d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0)) {
-                            const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
-                            const width = Math.min(diffDays, 7 - d.getDay());
-                            if (width > 0) {
-                                const eventDiv = document.createElement('div');
-                                eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
-                                eventDiv.style.width = `calc(${width * 100}% - 4px)`;
-                                eventDiv.style.marginLeft = '2px';
-                                eventDiv.style.top = `${eventTop}px`;
-                                eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
-                                cell.appendChild(eventDiv);
-                                eventTop += 22;
-                            }
-                        }
-                    });
-                    gridElement.appendChild(cell);
+                    console.error("Não foi possível buscar os dados:", error);
+                    const errorContainer = document.getElementById('inicio') || document.body;
+                    errorContainer.innerHTML = `<div class="m-6 p-4 text-red-700 bg-red-100 rounded-lg"><strong>Erro ao carregar os dados.</strong><br>${error.message}</div>`;
                 }
             }
 
-            const stagePercentageMap = { "Prospecção e Contratação de Especialistas": 5, "Edital de Credenciamento": 15, "Curso Piloto": 40, "Formação de Instrutores": 60, "Entrega Técnica": 80, "Lançamento a Campo": 90, "Entregue": 100 };
-            const getIndicatorColor = (p) => { if (p < 10) return { bg: 'bg-gray-400', hex: '#9ca3af', lightBg: 'bg-gray-300', textColor: 'text-gray-800' }; if (p < 20) return { bg: 'bg-red-500', hex: '#ef4444', lightBg: 'bg-red-400' }; if (p < 50) return { bg: 'bg-orange-400', hex: '#f97316', lightBg: 'bg-orange-400' }; if (p < 85) return { bg: 'bg-blue-500', hex: '#3b82f6', lightBg: 'bg-blue-400' }; return { bg: 'bg-brand-green', hex: '#235937', lightBg: 'bg-green-600' }; };
-            const formatDate = (date) => date ? new Date(date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/A';
-            
-            const pageLinks = document.querySelectorAll('.page-link');
-            const pages = document.querySelectorAll('.page-content');
-            const showPage = (pageId) => pages.forEach(p => p.classList.toggle('active', p.id === `page-${pageId}`));
-            pageLinks.forEach(link => link.addEventListener('click', (e) => { e.preventDefault(); showPage(link.dataset.page); document.getElementById('menu-dropdown').classList.add('hidden'); document.getElementById('sideMenu').classList.remove('show'); }));
-
-            const resultModal = document.getElementById('result-modal'), modalContent = document.getElementById('modal-content');
-            function openModal(course) {
-                const percentage = stagePercentageMap[course.etapaAtual] || 0;
-                const colors = getIndicatorColor(percentage);
-                document.getElementById('modal-stage-indicator').className = `w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center font-bold text-sm ${colors.lightBg} ${colors.textColor || 'text-white'}`;
-                document.getElementById('modal-stage-indicator').textContent = `${percentage}%`;
-                document.getElementById('modal-header').style.backgroundColor = colors.hex;
-                document.getElementById('modal-title').textContent = course.nome;
-                document.getElementById('modal-level').textContent = course.nivel;
-                document.getElementById('modal-date').textContent = formatDate(course.dataDisponivel);
-                document.getElementById('modal-tech').textContent = course.tecnico;
-                document.getElementById('modal-pedagogue').textContent = course.pedagogo;
-                document.getElementById('modal-stage').textContent = course.etapaAtual;
-                
-                const scheduleContent = document.getElementById('modal-tab-content-schedule');
-                let scheduleHtml = '';
-                
-                if (course.pilotoInicio && course.pilotoFim) {
-                    scheduleHtml += `<div class="pb-5"><strong class="font-semibold text-gray-500 mb-2 block border-b pb-2">Curso Piloto</strong><div class="text-gray-800 font-medium mt-2">De: ${formatDate(course.pilotoInicio)}<br>Até: ${formatDate(course.pilotoFim)}</div></div>`;
-                }
-
-                const allFormationsForCourse = getCalendarEvents(
-                    apiData.dadosProcessados.cursos.filter(c => c.nome === course.nome),
-                    apiData.dadosProcessados.formacoes
-                ).filter(e => e.type === 'Formação');
-
-
-                if(allFormationsForCourse.length > 0) {
-                    scheduleHtml += `<div class="${scheduleHtml ? 'pt-5' : ''}"><strong class="font-semibold text-gray-500 mb-2 block border-b pb-2">Formação de Instrutores</strong>`;
-                    allFormationsForCourse.forEach((formacao, index) => {
-                        if(formacao.start && formacao.end){
-                             scheduleHtml += `<div class="text-gray-800 font-medium mt-2 ${index < allFormationsForCourse.length - 1 ? 'pb-2 mb-2 border-b' : ''}">De: ${formatDate(formacao.start)}<br>Até: ${formatDate(formacao.end)}</div>`;
-                        }
-                    });
-                    scheduleHtml += `</div>`;
-                }
-                
-                scheduleContent.innerHTML = scheduleHtml || '<p class="text-gray-500">Nenhuma data de cronograma definida para este curso.</p>';
-                
-                document.querySelector('.modal-tab[data-tab="details"]').classList.add('active');
-                document.querySelector('.modal-tab[data-tab="schedule"]').classList.remove('active');
-                document.getElementById('modal-tab-content-details').classList.remove('hidden');
-                document.getElementById('modal-tab-content-schedule').classList.add('hidden');
-
-                resultModal.classList.remove('hidden');
-                setTimeout(() => modalContent.classList.remove('scale-95', 'opacity-0'), 10);
-            }
-            window.addEventListener('openCourseModal', e => openModal(e.detail));
-
-            document.querySelectorAll('.modal-tab').forEach(tab => {
-                tab.addEventListener('click', () => {
-                    const tabName = tab.dataset.tab;
-                    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
-                    tab.classList.add('active');
-                    document.getElementById('modal-tab-content-details').classList.toggle('hidden', tabName !== 'details');
-                    document.getElementById('modal-tab-content-schedule').classList.toggle('hidden', tabName !== 'schedule');
-                });
-            });
-
-            function destroyCharts() { Object.values(chartInstances).forEach(c => c && c.destroy()); chartInstances = {}; }
-            
-            function updateDashboardPage() {
-                const selectedYear = document.getElementById('year-selector').value;
-                const analise = apiData.analises[selectedYear];
-                if (!analise) return;
-
-                document.getElementById('dashboard-meta-entregas').textContent = analise.metaEntregas;
-                const { totalNovos, novosEntregues, totalAtualizacoes, atualizacoesEntregues } = analise.totalEntregas;
-                document.getElementById('dashboard-label-novos').textContent = `${novosEntregues}/${totalNovos}`;
-                document.getElementById('dashboard-progress-novos').style.width = totalNovos > 0 ? `${(novosEntregues / totalNovos) * 100}%` : '0%';
-                document.getElementById('dashboard-label-atualizacoes').textContent = `${atualizacoesEntregues}/${totalAtualizacoes}`;
-                document.getElementById('dashboard-progress-atualizacoes').style.width = totalAtualizacoes > 0 ? `${(atualizacoesEntregues / totalAtualizacoes) * 100}%` : '0%';
-                
-                destroyCharts();
-                
-                const dataForChart = getYearFilteredData().cursos;
-                const cursosPorEtapaMapeada = dataForChart.reduce((acc, c) => {
-                    const etapaMapeada = stageNameMapping[c.etapaAtual];
-                    if (etapaMapeada) acc[etapaMapeada] = (acc[etapaMapeada] || 0) + 1;
-                    return acc;
-                }, {});
-                const barLabels = Object.keys(cursosPorEtapaMapeada).sort();
-                const barValues = barLabels.map(key => cursosPorEtapaMapeada[key]);
-                const barMax = Math.max(...barValues);
-                chartInstances.barChart = new Chart(document.getElementById('barChart').getContext('2d'), { type: 'bar', data: { labels: barLabels, datasets: [{ data: barValues, backgroundColor: 'rgba(35, 89, 55, 0.7)', borderRadius: 8 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, suggestedMax: barMax + Math.ceil(barMax * 0.1), ticks: { stepSize: 1 } } }, plugins: { legend: { display: false }, datalabels: { clamp: true, anchor: 'end', align: 'top', color: '#374151', font: { weight: 'bold' } } } } });
-
-                let lineLabels = [], lineValues = [];
-                const formatTrimester = (key, year) => `${key.replace('T', '')}º Trimestre${year ? ` ${year}`:''}`;
-                if (selectedYear === 'Total') {
-                    const planning = getYearFilteredData().cursos.reduce((acc, c) => {
-                        if (c.trimestreDisponivel && c.anoDisponivel) { const key = `${c.anoDisponivel}-T${c.trimestreDisponivel}`; acc[key] = (acc[key] || 0) + 1; }
-                        return acc;
-                    }, {});
-                    const sortedKeys = Object.keys(planning).sort();
-                    lineLabels = sortedKeys.map(key => { const [year, tri] = key.split('-'); return formatTrimester(tri, year); });
-                    lineValues = sortedKeys.map(key => planning[key]);
-                } else {
-                    const lineChartData = analise.planejamentoTrimestral;
-                    lineLabels = Object.keys(lineChartData).sort().map(key => formatTrimester(key));
-                    lineValues = Object.keys(lineChartData).sort().map(key => lineChartData[key]);
-                }
-                const lineMax = Math.max(...lineValues);
-                chartInstances.lineChart = new Chart(document.getElementById('lineChart').getContext('2d'), { type: 'line', data: { labels: lineLabels, datasets: [{ data: lineValues, fill: true, backgroundColor: 'rgba(35, 89, 55, 0.7)', borderColor: '#235937', tension: 0.4 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { grid: { display: false } }, y: { beginAtZero: true, suggestedMax: lineMax + Math.ceil(lineMax * 0.1), ticks: { stepSize: 1 } } }, plugins: { legend: { display: false }, datalabels: { clamp: true, anchor: 'end', align: 'top', color: '#374151', font: { weight: 'bold' }, backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: 4 } } } });
-
-                const donutChartData = analise.cursosPorNivel;
-                const donutLabels = Object.keys(donutChartData), donutValues = Object.values(donutChartData);
-                chartInstances.donutChart = new Chart(document.getElementById('donutChart').getContext('2d'), { type: 'doughnut', data: { labels: donutLabels, datasets: [{ data: donutValues, backgroundColor: ['#235937', '#2e7548', '#3a905a', '#46ac6b', '#52c17d'], borderWidth: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { usePointStyle: true, boxWidth: 8 } }, datalabels: { formatter: (v, ctx) => { const total = ctx.chart.data.datasets[0].data.reduce((a, b) => a + b, 0); return total > 0 ? (v * 100 / total).toFixed(0) + "%" : "0%"; }, color: '#fff', font: { weight: 'bold' } } } } });
-            }
-            
-            function initializeDashboard() {
-                if (document.getElementById('search-input').dataset.initialized) return;
-                document.getElementById('search-input').dataset.initialized = true;
-
-                const searchInput = document.getElementById('search-input'), searchSuggestions = document.getElementById('search-suggestions');
-                const menuToggle = document.getElementById('menu-toggle'), menuDropdown = document.getElementById('menu-dropdown');
-                const notificationToggle = document.getElementById('notification-toggle'), notificationDropdown = document.getElementById('notification-dropdown');
-                const sideMenu = document.getElementById('sideMenu'), modalCloseBtn = document.getElementById('modal-close-btn');
-
-                document.addEventListener('mousemove', (e) => { if (e.clientX <= 20) sideMenu.classList.add('show'); });
-                sideMenu.addEventListener('mouseleave', () => sideMenu.classList.remove('show'));
-                menuToggle.addEventListener('click', (e) => { e.stopPropagation(); menuDropdown.classList.toggle('hidden'); notificationDropdown.classList.add('hidden'); });
-                notificationToggle.addEventListener('click', (e) => { e.stopPropagation(); notificationDropdown.classList.toggle('hidden'); menuDropdown.classList.add('hidden'); });
-                window.addEventListener('click', (e) => { if (menuToggle && !menuToggle.contains(e.target)) menuDropdown.classList.add('hidden'); if (notificationToggle && !notificationToggle.contains(e.target)) notificationDropdown.classList.add('hidden'); if (searchInput && !searchInput.contains(e.target)) searchSuggestions.classList.add('hidden'); });
-                const closeModal = () => { modalContent.classList.add('scale-95', 'opacity-0'); setTimeout(() => resultModal.classList.add('hidden'), 300); };
-                modalCloseBtn.addEventListener('click', closeModal);
-                resultModal.addEventListener('click', (e) => { if (e.target === resultModal) closeModal(); });
-
-                searchInput.addEventListener('input', (e) => {
-                    const searchTerm = e.target.value.toLowerCase().trim();
-                    searchSuggestions.classList.toggle('hidden', searchTerm.length === 0);
-                    if (searchTerm.length > 0) {
-                        const filtered = apiData.dadosProcessados.cursos.filter(c => c.nome.toLowerCase().includes(searchTerm));
-                        searchSuggestions.innerHTML = '';
-                        filtered.forEach(course => {
-                            const item = document.createElement('a');
-                            item.href = '#';
-                            item.className = 'block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100';
-                            item.textContent = course.nome;
-                            item.onclick = (event) => { event.preventDefault(); openModal(course); searchInput.value = ''; searchSuggestions.classList.add('hidden'); };
-                            searchSuggestions.appendChild(item);
-                        });
-                    }
-                });
-                
-                const { proximosLancamentos } = apiData;
-                const slidesContainer = document.getElementById('slides-container');
-                const itemsPerView = 4;
-                let currentIndex = 0, slideInterval;
-                slidesContainer.innerHTML = proximosLancamentos.map(item => `<div class="w-1/${itemsPerView} flex-shrink-0 p-2 h-full"><div class="bg-white shadow p-4 rounded-xl text-left h-full flex flex-col justify-between transition-all duration-300 hover:shadow-lg hover:-translate-y-1 cursor-pointer border-b-4 border-transparent hover:border-brand-green" onclick='window.dispatchEvent(new CustomEvent("openCourseModal", { detail: ${JSON.stringify(item)} }))'><div><p class="text-xs font-medium text-brand-green">${item.nivel}</p><h4 class="font-bold text-gray-800 text-base mt-1 line-clamp-2">${item.nome}</h4></div><div class="flex items-center text-xs font-semibold text-gray-500 mt-2"><svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1.5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clip-rule="evenodd" /></svg><span>${formatDate(item.dataLancamento)}</span></div></div></div>`).join('');
-                const showSlide = i => slidesContainer.style.transform = `translateX(-${i * (100 / itemsPerView)}%)`;
-                const next = () => { currentIndex = (currentIndex >= proximosLancamentos.length - itemsPerView) ? 0 : currentIndex + 1; showSlide(currentIndex); };
-                const prev = () => { currentIndex = (currentIndex <= 0) ? proximosLancamentos.length - itemsPerView : currentIndex - 1; showSlide(currentIndex); };
-                const start = () => { stop(); slideInterval = setInterval(next, 5000); };
-                const stop = () => clearInterval(slideInterval);
-                document.getElementById('next-btn').onclick = () => { next(); start(); };
-                document.getElementById('prev-btn').onclick = () => { prev(); start(); };
-                slidesContainer.onmouseenter = stop;
-                slidesContainer.onmouseleave = start;
-                if(proximosLancamentos.length > itemsPerView) start();
-
-                Chart.register(ChartDataLabels);
-                updateDashboardPage();
-            }
-
-            function initializeReportPage() {
-                const tableBody = document.getElementById('report-table-body');
-                if (!tableBody || tableBody.dataset.initialized) return;
-                tableBody.dataset.initialized = true;
-
-                let currentSort = { column: null, direction: 'asc' }, activeFilters = { etapaAtual: [], tecnico: [], pedagogo: [] }, currentData = [];
-
-                const renderTableBody = (data) => {
-                     tableBody.innerHTML = data.map((course) => {
-                        const percentage = stagePercentageMap[course.etapaAtual] || 0;
-                        const { bg: indicatorColor } = getIndicatorColor(percentage);
-                        const etapaExibida = stageNameMapping[course.etapaAtual] || course.etapaAtual;
-                        return `<tr class="border-b hover:bg-gray-50 cursor-pointer" onclick='window.dispatchEvent(new CustomEvent("openCourseModal", { detail: ${JSON.stringify(course)} }))'>
-                                <td class="px-4 py-3"><span class="h-2.5 w-2.5 ${indicatorColor} rounded-full inline-block"></span></td>
-                                <th scope="row" class="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">${course.nome}</th>
-                                <td class="px-4 py-3">${course.nivel}</td><td class="px-4 py-3">${course.tipo}</td>
-                                <td class="px-4 py-3">${course.pedagogo}</td><td class="px-4 py-3">${formatDate(course.dataDisponivel)}</td>
-                                <td class="px-4 py-3">${etapaExibida}</td></tr>`;
-                    }).join('');
-                };
-
-                const sortData = (column) => {
-                    const direction = currentSort.column === column && currentSort.direction === 'asc' ? 'desc' : 'asc';
-                    currentSort = { column, direction };
-                    const sortedData = [...currentData].sort((a, b) => {
-                        let valA = a[column], valB = b[column];
-                        if (column === 'dataDisponivel') { valA = valA ? valA.getTime() : 0; valB = valB ? valB.getTime() : 0; } 
-                        else { valA = String(valA || '').toLowerCase(); valB = String(valB || '').toLowerCase(); }
-                        if (valA < valB) return direction === 'asc' ? -1 : 1;
-                        if (valA > valB) return direction === 'asc' ? 1 : -1;
-                        return 0;
-                    });
-                    currentData = sortedData;
-                    renderTableBody(currentData);
-                    updateSortIcons();
-                };
-
-                const updateSortIcons = () => document.querySelectorAll('.sortable-header').forEach(header => {
-                    header.classList.add('cursor-pointer');
-                    const sortKey = header.dataset.sort;
-                    let icon = header.querySelector('svg');
-                    if (icon) icon.remove();
-                    if (sortKey === currentSort.column) {
-                         icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-                         icon.setAttribute('class', 'w-4 h-4 inline-block ml-1'); icon.setAttribute('fill', 'none');
-                         icon.setAttribute('viewBox', '0 0 24 24'); icon.setAttribute('stroke', 'currentColor');
-                         icon.innerHTML = currentSort.direction === 'asc' ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />' : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />';
-                         header.appendChild(icon);
-                    }
-                });
-                document.querySelectorAll('.sortable-header').forEach(header => header.addEventListener('click', () => sortData(header.dataset.sort)));
-                
-                const filterBtn = document.getElementById('filter-table-btn'), filterModal = document.getElementById('filter-modal'), filterModalContent = document.getElementById('filter-modal-content');
-                const filterStageOptions = document.getElementById('filter-stage-options'), filterTechOptions = document.getElementById('filter-tech-options'), filterPedagogueOptions = document.getElementById('filter-pedagogue-options');
-                const openFilterModal = () => { filterModal.classList.remove('hidden'); setTimeout(() => filterModalContent.classList.remove('scale-95', 'opacity-0'), 10); };
-                const closeFilterModal = () => { filterModalContent.classList.add('scale-95', 'opacity-0'); setTimeout(() => filterModal.classList.add('hidden'), 300); };
-                
-                function populateFilters() {
-                    const fullCourseData = apiData.dadosProcessados.cursos;
-                    const uniqueStages = [...new Set(fullCourseData.map(c => c.etapaAtual).filter(Boolean))];
-                    const uniqueTechs = [...new Set(fullCourseData.map(c => c.tecnico).filter(Boolean))].sort();
-                    const uniquePedagogues = [...new Set(fullCourseData.map(c => c.pedagogo).filter(Boolean))].sort();
-                    
-                    const createPill = (value, group) => `<div class="filter-pill" data-group="${group}" data-value="${value}">${value}</div>`;
-                    
-                    filterStageOptions.innerHTML = uniqueStages.map(v => createPill(v, 'etapaAtual')).join('');
-                    filterTechOptions.innerHTML = uniqueTechs.map(v => createPill(v, 'tecnico')).join('');
-                    filterPedagogueOptions.innerHTML = uniquePedagogues.map(v => createPill(v, 'pedagogo')).join('');
-                    
-                    document.querySelectorAll('.filter-pill').forEach(pill => pill.addEventListener('click', () => pill.classList.toggle('active')));
-                }
-                
-                const updateReportCards = (data) => {
-                    const total = data.length, entregues = data.filter(c => c.etapaAtual === 'Entregue').length;
-                    document.getElementById('card-total').textContent = total;
-                    document.getElementById('card-novos').textContent = data.filter(c => c.tipo === 'Curso novo').length;
-                    document.getElementById('card-atualizacoes').textContent = data.filter(c => c.tipo === 'Atualização').length;
-                    document.getElementById('card-entregues').textContent = entregues;
-                    document.getElementById('card-restantes').textContent = total - entregues;
-                };
-
-                function applyFilters() {
-                    activeFilters.etapaAtual = [...filterStageOptions.querySelectorAll('.filter-pill.active')].map(el => el.dataset.value);
-                    activeFilters.tecnico = [...filterTechOptions.querySelectorAll('.filter-pill.active')].map(el => el.dataset.value);
-                    activeFilters.pedagogo = [...filterPedagogueOptions.querySelectorAll('.filter-pill.active')].map(el => el.dataset.value);
-
-                    let filteredData = getYearFilteredData().cursos;
-                    if (activeFilters.etapaAtual.length > 0) filteredData = filteredData.filter(c => activeFilters.etapaAtual.includes(c.etapaAtual));
-                    if (activeFilters.tecnico.length > 0) filteredData = filteredData.filter(c => activeFilters.tecnico.includes(c.tecnico));
-                    if (activeFilters.pedagogo.length > 0) filteredData = filteredData.filter(c => activeFilters.pedagogo.includes(c.pedagogo));
-                    
-                    const activeFilterCount = Object.values(activeFilters).reduce((sum, arr) => sum + arr.length, 0);
-                    const filterBadge = document.getElementById('filter-badge');
-                    if (activeFilterCount > 0) {
-                        filterBadge.textContent = activeFilterCount;
-                        filterBadge.classList.remove('hidden');
-                        filterBtn.classList.add('text-brand-green');
-                    } else {
-                        filterBadge.classList.add('hidden');
-                        filterBtn.classList.remove('text-brand-green');
-                    }
-
-                    currentData = filteredData; currentSort = { column: null, direction: 'asc' };
-                    updateSortIcons(); renderTableBody(currentData); updateReportCards(currentData);
-                    renderSpeedometer(); renderSmallCalendar();
-                }
-
-                document.getElementById('filter-modal-close-btn').addEventListener('click', closeFilterModal);
-                document.getElementById('filter-clear-btn').addEventListener('click', () => { 
-                    filterModal.querySelectorAll('.filter-pill.active').forEach(el => el.classList.remove('active')); 
-                    applyFilters(); 
-                    closeFilterModal(); 
-                });
-                filterBtn.addEventListener('click', openFilterModal);
-                document.getElementById('filter-apply-btn').addEventListener('click', () => { applyFilters(); closeFilterModal(); });
-                window.updateReportPage = applyFilters;
-                
-                const calendarContainer = document.getElementById('calendar-container');
-                let smallCalendarDate = new Date();
-                
-                const renderSmallCalendar = () => {
-                    const month = smallCalendarDate.getMonth(), year = smallCalendarDate.getFullYear();
-                    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-                    
-                    const eventsMap = new Map();
-                    apiData.eventosCalendario.forEach(event => { const key = event.date; if(!eventsMap.has(key)) eventsMap.set(key, []); eventsMap.get(key).push(event); });
-                    
-                    const firstDay = new Date(year, month, 1).getDay(), daysInMonth = new Date(year, month + 1, 0).getDate();
-                    let daysHtml = Array(firstDay).fill('<div></div>').join('');
-                    for (let day = 1; day <= daysInMonth; day++) {
-                        const dateObj = new Date(year, month, day); const dateKey = dateObj.toISOString().split('T')[0];
-                        const todaysEvents = eventsMap.get(dateKey) || [];
-                        const isToday = new Date().toDateString() === dateObj.toDateString();
-                        let dayContent = isToday ? `<span class="bg-brand-green text-white rounded-full w-6 h-6 flex items-center justify-center">${day}</span>` : `<span class="w-6 h-6 flex items-center justify-center">${day}</span>`;
-                        daysHtml += `<div class="relative h-8 flex items-center justify-center flex-col ${todaysEvents.length ? 'cursor-pointer' : ''}" data-date-key="${dateKey}">${dayContent}${todaysEvents.length ? '<span class="absolute bottom-0 h-1.5 w-1.5 bg-brand-green rounded-full"></span>' : ''}</div>`;
-                    }
-                    calendarContainer.innerHTML = `<div class="flex flex-col h-full"><div class="flex justify-between items-center mb-2 flex-shrink-0"><button id="sm-prev-month" class="p-1 rounded-full hover:bg-gray-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg></button><h4 class="font-bold text-gray-800">${monthNames[month]} ${year}</h4><button id="sm-next-month" class="p-1 rounded-full hover:bg-gray-100"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg></button></div><div class="grid grid-cols-7 gap-1 text-center text-xs font-semibold text-gray-500 flex-shrink-0">${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => `<div>${d}</div>`).join('')}</div><div class="grid grid-cols-7 mt-1">${daysHtml}</div></div>`;
-                    document.getElementById('sm-prev-month').onclick = () => { smallCalendarDate.setMonth(smallCalendarDate.getMonth() - 1); renderSmallCalendar(); };
-                    document.getElementById('sm-next-month').onclick = () => { smallCalendarDate.setMonth(smallCalendarDate.getMonth() + 1); renderSmallCalendar(); };
-                };
-                
-                const calendarModal = document.getElementById('calendar-modal'), calendarModalContent = document.getElementById('calendar-modal-content');
-                let expandedCalendarDate = new Date();
-
-                const openCalendarModal = () => {
-                    renderExpandedCalendar();
-                    calendarModal.classList.remove('hidden');
-                    setTimeout(() => calendarModalContent.classList.remove('scale-95', 'opacity-0'), 10);
-                };
-
-                const closeCalendarModal = () => {
-                    calendarModalContent.classList.add('scale-95', 'opacity-0');
-                    setTimeout(() => calendarModal.classList.add('hidden'), 300);
-                };
-                
-                const renderExpandedCalendar = () => {
-                     const month = expandedCalendarDate.getMonth();
-                     const year = expandedCalendarDate.getFullYear();
-                     const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-                     document.getElementById('expanded-calendar-title').textContent = `${monthNames[month]} ${year}`;
-                     const { cursos, formacoes } = getYearFilteredData();
-                     renderCalendarGrid(document.getElementById('expanded-calendar-grid'), expandedCalendarDate, cursos, formacoes);
-                };
-
-                document.getElementById('expand-calendar-btn').addEventListener('click', openCalendarModal);
-                document.getElementById('calendar-modal-close-btn').addEventListener('click', closeCalendarModal);
-                document.getElementById('expanded-calendar-prev-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() - 1); renderExpandedCalendar(); };
-                document.getElementById('expanded-calendar-next-month').onclick = () => { expandedCalendarDate.setMonth(expandedCalendarDate.getMonth() + 1); renderExpandedCalendar(); };
-
-                const renderSpeedometer = () => {
-                    const container = document.getElementById('kpi-speedometer-container');
-                    const selectedYear = document.getElementById('year-selector').value;
-                    const kpiValue = apiData.analises[selectedYear].kpiGeral || 0;
-                    const { hex: arcColor } = getIndicatorColor(kpiValue);
-                    const arcLength = 125.6, finalOffset = arcLength * (1 - (kpiValue / 100));
-                    container.innerHTML = `<h3 class="text-lg font-bold text-brand-green mb-1">INDICADOR</h3><div class="relative w-56 h-28 mx-auto"><svg class="w-full h-full absolute top-0 left-0" viewBox="0 0 100 50"><path d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="#e5e7eb" stroke-width="12" stroke-linecap="round"></path><path id="kpi-arc" d="M 10 50 A 40 40 0 0 1 90 50" fill="none" stroke="${arcColor}" stroke-width="12" stroke-linecap="round" style="stroke-dasharray: ${arcLength}; stroke-dashoffset: ${arcLength}; transition: stroke-dashoffset 1s ease-out;"></path></svg><div class="absolute bottom-1 left-1/2 -translate-x-1/2 text-center"><span class="text-4xl font-bold text-gray-800">${kpiValue}%</span></div></div>`;
-                    setTimeout(() => { if(document.getElementById('kpi-arc')) document.getElementById('kpi-arc').style.strokeDashoffset = finalOffset; }, 100);
-                };
-                
-                populateFilters(); applyFilters();
-            }
-
-            function initializePedagogoPage() {
-                const container = document.getElementById('pedagogo-calendar-container');
-                if(!container || container.dataset.initialized) return;
-                container.dataset.initialized = true;
-
-                let pedagogoCalendarDate = new Date(), activePedagogoFilter = 'All';
-
-                const uniquePedagogues = [...new Set(apiData.dadosProcessados.cursos.map(c => c.pedagogo).filter(p => p && p !== 'Não definido'))].sort();
-                const filterContainer = document.getElementById('pedagogo-filter-container');
-                filterContainer.innerHTML = ['All', ...uniquePedagogues]
-                    .map(p => `<button class="pedagogo-filter-btn px-4 py-2 rounded-full font-semibold transition" data-pedagogo="${p}">${p === 'All' ? 'Todos' : p}</button>`).join('');
-                const filterButtons = filterContainer.querySelectorAll('.pedagogo-filter-btn');
-
-                const renderPedagogoPageContent = () => {
-                    const { cursos: yearFilteredCursos, outrasAtividades: yearFilteredAtividades, formacoes: yearFilteredFormacoes } = getYearFilteredData();
-                    
-                    const pedagogoFilteredCursos = (activePedagogoFilter === 'All') ? yearFilteredCursos : yearFilteredCursos.filter(c => c.pedagogo === activePedagogoFilter);
-                    const pedagogoFilteredAtividades = (activePedagogoFilter === 'All') ? yearFilteredAtividades : yearFilteredAtividades.filter(a => a.responsavel === activePedagogoFilter);
-                    const pedagogoFilteredFormacoes = (activePedagogoFilter === 'All') ? yearFilteredFormacoes 
-                        : yearFilteredFormacoes.filter(f => {
-                            const cursoOriginal = yearFilteredCursos.find(c => c.nome === f.curso);
-                            return cursoOriginal && cursoOriginal.pedagogo === activePedagogoFilter;
-                        });
-
-                    document.getElementById('pedagogo-card-formacao').textContent = pedagogoFilteredCursos.filter(c => c.formacaoInicio).length + pedagogoFilteredFormacoes.length;
-                    document.getElementById('pedagogo-card-piloto').textContent = pedagogoFilteredCursos.filter(c => c.pilotoInicio).length;
-
-                    const otherActivitiesContainer = document.getElementById('pedagogo-outras-atividades');
-                    const activitiesCount = pedagogoFilteredAtividades.reduce((acc, atv) => { const tipo = atv.tipo || 'Não definido'; acc[tipo] = (acc[tipo] || 0) + 1; return acc; }, {});
-                    otherActivitiesContainer.innerHTML = Object.entries(activitiesCount).sort((a,b) => b[1] - a[1])
-                        .map(([name, count]) => `<div class="flex justify-between items-baseline"><p class="font-bold text-gray-800">${name}</p><p class="text-xl font-bold text-gray-600">${count}</p></div>`).join('<hr class="my-2">') 
-                        || '<p class="text-center text-gray-500 mt-4">Nenhuma atividade neste período.</p>';
-                    
-                    renderPedagogoCalendar(pedagogoFilteredCursos, pedagogoFilteredFormacoes);
-                };
-                window.updatePedagogoPage = renderPedagogoPageContent;
-                
-                filterButtons.forEach(button => button.addEventListener('click', () => {
-                    activePedagogoFilter = button.dataset.pedagogo;
-                    filterButtons.forEach(btn => btn.classList.remove('active'));
-                    button.classList.add('active'); renderPedagogoPageContent();
-                }));
-                
-                const renderPedagogoCalendar = (cursos, formacoes) => {
-                    const month = pedagogoCalendarDate.getMonth(), year = pedagogoCalendarDate.getFullYear();
-                    const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-                    container.innerHTML = `<div class="flex justify-between items-center mb-4 flex-shrink-0"><div class="flex items-center space-x-4"><button id="ped-prev" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15 19l-7-7 7-7"></path></svg></button><h2 class="text-2xl font-bold text-brand-green text-center w-48">${monthNames[month]} ${year}</h2><button id="ped-next" class="p-2 rounded-full hover:bg-gray-100"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"></path></svg></button></div></div><div class="grid grid-cols-7 text-center font-bold text-gray-600 border-b pb-2 mb-2 flex-shrink-0"><div>dom.</div><div>seg.</div><div>ter.</div><div>qua.</div><div>qui.</div><div>sex.</div><div>sáb.</div></div><div id="ped-grid" class="grid grid-cols-7 grid-rows-6 flex-grow gap-1 overflow-y-auto pr-2"></div>`;
-                    document.getElementById('ped-prev').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() - 1); renderPedagogoPageContent(); };
-                    document.getElementById('ped-next').onclick = () => { pedagogoCalendarDate.setMonth(pedagogoCalendarDate.getMonth() + 1); renderPedagogoPageContent(); };
-                    
-                    renderCalendarGrid(document.getElementById('ped-grid'), pedagogoCalendarDate, cursos, formacoes);
-                };
-                
-                document.querySelector('.pedagogo-filter-btn[data-pedagogo="All"]').classList.add('active');
-                renderPedagogoPageContent();
-            }
-
-            const yearSelector = document.getElementById('year-selector');
-            const getYearFilteredData = () => {
-                const selected = yearSelector.value;
-                if (selected === 'Total') return apiData.dadosProcessados;
-                const selectedYear = parseInt(selected);
-                return {
-                    cursos: apiData.dadosProcessados.cursos.filter(c => c.anoDisponivel == selectedYear),
-                    formacoes: apiData.dadosProcessados.formacoes.filter(f => f.inicio && f.inicio.getFullYear() == selectedYear),
-                    eventos: apiData.dadosProcessados.eventos.filter(e => e.inicio && e.inicio.getFullYear() == selectedYear),
-                    outrasAtividades: apiData.dadosProcessados.outrasAtividades.filter(a => a.ano == selectedYear),
-                };
-            };
-
-            const populateYearSelector = () => { const years = Object.keys(apiData.analises); yearSelector.innerHTML = years.map(y => `<option value="${y}">${y === 'Total' ? 'Geral' : y}</option>`).join(''); };
-            yearSelector.addEventListener('change', () => { updateDashboardPage(); if(window.updateReportPage) window.updateReportPage(); if(window.updatePedagogoPage) window.updatePedagogoPage(); });
-
-            const success = await fetchData();
-            const loadingOverlay = document.getElementById('loading-overlay');
-            if (success) {
-                populateYearSelector();
-                initializeDashboard();
-                initializeReportPage();
-                initializePedagogoPage();
-                showPage('dashboard');
-                Chart.defaults.font.family = "'Inter', sans-serif";
-                
-                loadingOverlay.style.opacity = '0';
-                setTimeout(() => loadingOverlay.style.display = 'none', 300);
-            } else {
-                loadingOverlay.innerHTML = '<p class="text-lg font-semibold text-red-500">Falha ao carregar os dados.</p>';
-            }
+            initialize();
         });
     </script>
 </body>
