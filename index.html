@@ -21,7 +21,6 @@
         }
     </script>
     <style>
-        /* CSS para Layout Responsivo Robusto */
         html { font-size: 16px; }
         @media (max-width: 1920px) { html { font-size: 0.833vw; } }
         @media (max-width: 1200px) { html { font-size: 10px; } }
@@ -32,6 +31,10 @@
         main { position: relative; margin-top: 7rem; height: calc(100vh - 7rem); }
         .page-content { position: absolute; top: 0; right: 0; bottom: 0; left: 0; padding: 0 2rem 1.5rem 2rem; overflow-y: auto; opacity: 0; transition: opacity 0.3s ease-in-out; pointer-events: none; }
         .page-content.active { opacity: 1; pointer-events: auto; }
+        
+        #page-dashboard { display: flex; flex-direction: column; }
+        #page-dashboard > .grid { flex-grow: 1; min-height: 0; }
+        
         #page-relatorio.page-content.active { overflow: hidden; }
 
         #sideMenu { background-color: #235937; top: 50%; transform: translate(-100%, -50%); transition: transform 0.3s ease-in-out; }
@@ -142,7 +145,7 @@
         </div>
 
         <main>
-            <div id="page-dashboard" class="flex flex-col h-full gap-4 page-content">
+            <div id="page-dashboard" class="page-content">
                 <div class="flex items-start space-x-6 flex-shrink-0">
                     <div class="bg-white rounded-2xl shadow p-4 w-48 h-24 flex-shrink-0 flex flex-col justify-center items-center transition-all duration-300 hover:-translate-y-1 hover:shadow-lg cursor-pointer border-b-4 border-transparent hover:border-brand-green">
                         <h3 class="text-xs font-semibold text-gray-600 text-center">META DE ENTREGAS</h3><p id="dashboard-meta-entregas" class="text-3xl font-bold text-brand-green mt-1">0</p>
@@ -379,19 +382,20 @@
                     cell.appendChild(dayNumber);
 
                     let eventTop = 35;
-                    allEvents.filter(event => d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0))
-                             .forEach(event => {
-                        const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
-                        const width = Math.min(diffDays, 7 - d.getDay());
-                        if (width > 0) {
-                            const eventDiv = document.createElement('div');
-                            eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
-                            eventDiv.style.width = `calc(${width * 100}% - 4px)`;
-                            eventDiv.style.marginLeft = '2px';
-                            eventDiv.style.top = `${eventTop}px`;
-                            eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
-                            cell.appendChild(eventDiv);
-                            eventTop += 22;
+                    allEvents.forEach(event => {
+                         if (d >= event.start && d <= event.end && (d.getTime() === event.start.getTime() || d.getDay() === 0)) {
+                            const diffDays = Math.round((event.end - d) / (1000 * 60 * 60 * 24)) + 1;
+                            const width = Math.min(diffDays, 7 - d.getDay());
+                            if (width > 0) {
+                                const eventDiv = document.createElement('div');
+                                eventDiv.className = `absolute left-0 p-1 text-[10px] leading-tight font-semibold truncate ${event.color} h-5 flex items-center rounded`;
+                                eventDiv.style.width = `calc(${width * 100}% - 4px)`;
+                                eventDiv.style.marginLeft = '2px';
+                                eventDiv.style.top = `${eventTop}px`;
+                                eventDiv.textContent = `(${event.type}) ${event.course.nome}`;
+                                cell.appendChild(eventDiv);
+                                eventTop += 22;
+                            }
                         }
                     });
                     gridElement.appendChild(cell);
@@ -837,9 +841,6 @@
                 initializePedagogoPage();
                 showPage('dashboard');
                 Chart.defaults.font.family = "'Inter', sans-serif";
-                
-                // Set initial scale and remove the wrapper approach
-                window.dispatchEvent(new Event('resize')); 
                 
                 loadingOverlay.style.opacity = '0';
                 setTimeout(() => loadingOverlay.style.display = 'none', 300);
