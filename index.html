@@ -442,31 +442,44 @@
 
             // --- FUNÇÃO DE AJUDA PARA DATAS ---
             /**
-             * Converte uma string de data (potencialmente em formato DD/MM/YYYY) para um objeto Date válido.
-             * @param {string} dateString A data em formato de string.
+             * Converte uma string de data (qualquer formato reconhecido ou DD/MM/YYYY) 
+             * para um objeto Date normalizado para meia-noite UTC.
+             * @param {string | Date} dateInput A data em formato de string ou um objeto Date.
              * @returns {Date|null} O objeto Date ou null se a string for inválida.
              */
-            function parseDate(dateString) {
-                if (!dateString || typeof dateString !== 'string') return null;
+            function parseDate(dateInput) {
+                if (!dateInput) return null;
 
-                // Tenta criar a data diretamente (funciona para YYYY-MM-DD e outros formatos ISO)
-                let date = new Date(dateString);
-                if (!isNaN(date.getTime())) {
-                    return date;
+                // Se já for um objeto Date válido, apenas normalize para UTC e retorne
+                if (dateInput instanceof Date && !isNaN(dateInput)) {
+                    return new Date(Date.UTC(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate()));
                 }
 
-                // Se falhar, tenta o formato DD/MM/YYYY
-                const parts = dateString.split('/');
-                if (parts.length === 3) {
-                    const [day, month, year] = parts;
-                    // O mês em JavaScript é 0-indexado (0-11)
-                    date = new Date(year, month - 1, day);
-                    if (!isNaN(date.getTime())) {
-                        return date;
+                if (typeof dateInput !== 'string') return null;
+                
+                let date;
+
+                // Tenta detectar e analisar o formato DD/MM/YYYY (comum no Brasil)
+                const parts = dateInput.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+                if (parts) {
+                    const day = parseInt(parts[1], 10);
+                    const month = parseInt(parts[2], 10);
+                    const year = parseInt(parts[3], 10);
+                    if (day > 0 && day <= 31 && month > 0 && month <= 12 && year > 1900) {
+                        date = new Date(Date.UTC(year, month - 1, day));
+                        if (!isNaN(date.getTime())) return date;
                     }
                 }
-                
-                // Retorna null se não conseguir interpretar a data
+
+                // Se o formato acima falhar ou não corresponder, tente a análise direta do navegador
+                // Isso lida com formatos ISO como "YYYY-MM-DD"
+                date = new Date(dateInput);
+                if (!isNaN(date.getTime())) {
+                    // Normaliza para UTC para consistência
+                    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+                }
+
+                console.warn(`Não foi possível analisar o formato da data: "${dateInput}"`);
                 return null;
             }
 
@@ -543,7 +556,7 @@
                 if (!proximosLancamentos || proximosLancamentos.length === 0) return '';
                 
                 const hoje = new Date();
-                hoje.setHours(0, 0, 0, 0);
+                hoje.setUTCHours(0, 0, 0, 0);
 
                 const dezProximos = proximosLancamentos
                     .map(c => ({...c, dateObj: parseDate(c.dataLancamento)}))
@@ -736,13 +749,11 @@
                 const nextBtn = document.getElementById('next-btn');
 
                 const hoje = new Date();
-                hoje.setHours(0, 0, 0, 0);
+                hoje.setUTCHours(0, 0, 0, 0);
 
                 const proximos = proximosLancamentos
                     .map(c => ({...c, dateObj: parseDate(c.dataLancamento)}))
-                    .filter(c => c.dateObj && c.dateObj >= hoje)
-                    .sort((a, b) => a.dateObj - b.dateObj)
-                    .slice(0, 10);
+                    .filter(c => c.dateObj && c.dateObj >= hoje);
                 
                 if (!track || proximos.length <= 5) {
                     if (prevBtn) prevBtn.style.display = 'none';
@@ -921,20 +932,20 @@
             }
 
             function generateCalendarSummaryHTML(date, events) {
-                const year = date.getFullYear();
-                const month = date.getMonth();
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth();
                 const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                today.setUTCHours(0, 0, 0, 0);
 
-                const firstDayOfMonth = new Date(year, month, 1);
-                const lastDayOfMonth = new Date(year, month + 1, 0);
-                const firstDayOfWeek = firstDayOfMonth.getDay();
+                const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
+                const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0));
+                const firstDayOfWeek = firstDayOfMonth.getUTCDay();
                 
                 const eventDates = new Set(events.map(e => parseDate(e.start)).filter(Boolean).map(d => d.toISOString().split('T')[0]));
 
                 let html = `
                     <div class="flex justify-between items-center mb-2">
-                        <h3 class="font-semibold text-gray-700">${date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+                        <h3 class="font-semibold text-gray-700">${date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h3>
                         <button id="expand-calendar-btn" class="text-sm text-green-700 hover:underline">Expandir</button>
                     </div>
                     <div class="calendar-grid">
@@ -945,8 +956,8 @@
                     html += `<div></div>`;
                 }
 
-                for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
-                    const currentDate = new Date(year, month, day);
+                for (let day = 1; day <= lastDayOfMonth.getUTCDate(); day++) {
+                    const currentDate = new Date(Date.UTC(year, month, day));
                     const currentDateStr = currentDate.toISOString().split('T')[0];
                     let classes = 'calendar-day day-in-month';
                     if (currentDate.getTime() === today.getTime()) classes += ' day-today';
@@ -958,21 +969,21 @@
             }
 
             function renderFullCalendar(date, events) {
-                const year = date.getFullYear();
-                const month = date.getMonth();
+                const year = date.getUTCFullYear();
+                const month = date.getUTCMonth();
                 const today = new Date();
-                today.setHours(0, 0, 0, 0);
+                today.setUTCHours(0, 0, 0, 0);
 
-                const firstDayOfMonth = new Date(year, month, 1);
+                const firstDayOfMonth = new Date(Date.UTC(year, month, 1));
 
                 let startDate = new Date(firstDayOfMonth);
-                startDate.setDate(startDate.getDate() - startDate.getDay());
+                startDate.setUTCDate(startDate.getUTCDate() - startDate.getUTCDay());
 
                 const container = document.getElementById('calendar-modal-body');
                 container.innerHTML = `
                     <div class="calendar-header border-b">
                         <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100">&lt;</button>
-                        <h3 class="font-bold text-lg text-gray-800">${date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+                        <h3 class="font-bold text-lg text-gray-800">${date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</h3>
                         <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100">&gt;</button>
                     </div>
                     <div class="grid grid-cols-7 text-center font-semibold text-sm border-b">
@@ -986,20 +997,21 @@
                 
                 for(let i=0; i<42; i++) {
                     const dayCell = document.createElement('div');
-                    const isNotInMonth = dayCounter.getMonth() !== month;
+                    const isNotInMonth = dayCounter.getUTCMonth() !== month;
                     dayCell.className = `full-calendar-day ${isNotInMonth ? 'not-in-month' : ''}`;
-                    dayCell.innerHTML = `<div class="font-medium ${dayCounter.getTime() === today.getTime() ? 'text-red-500' : ''}">${dayCounter.getDate()}</div>`;
+                    dayCell.innerHTML = `<div class="font-medium ${dayCounter.getTime() === today.getTime() ? 'text-red-500' : ''}">${dayCounter.getUTCDate()}</div>`;
                     dayCell.dataset.date = dayCounter.toISOString().split('T')[0];
                     grid.appendChild(dayCell);
-                    dayCounter.setDate(dayCounter.getDate() + 1);
+                    dayCounter.setUTCDate(dayCounter.getUTCDate() + 1);
                 }
                 
                 events.forEach(event => {
                     const start = parseDate(event.start);
-                    const end = event.end ? parseDate(event.end) : new Date(start);
                     if (!start) return;
+                    const end = event.end ? parseDate(event.end) : start;
+                    if (!end) return;
 
-                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
                         const dateStr = d.toISOString().split('T')[0];
                         const cell = grid.querySelector(`[data-date="${dateStr}"]`);
                         if(cell){
@@ -1143,10 +1155,7 @@
                             <p class="text-gray-500 font-semibold">Etapa Atual</p>
                             <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
                         </div>
-                        <div>
-                            <p class="text-gray-500 font-semibold">Nível do Curso</p>
-                            <p class="text-gray-900">${course.nivel || 'N/D'}</p>
-                        </div>
+                        <div><p class="text-gray-500 font-semibold">Nível do Curso</p><p class="text-gray-900">${course.nivel || 'N/D'}</p></div>
                         <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
                         <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
                         <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
@@ -1193,7 +1202,7 @@
                 const agendaContent = document.getElementById('content-agenda');
                 if (sortedEvents.length > 0) {
                     const today = new Date();
-                    today.setHours(0,0,0,0);
+                    today.setUTCHours(0,0,0,0);
                     
                     agendaContent.innerHTML = sortedEvents.map(event => {
                         const endDate = event.fim;
@@ -1254,7 +1263,7 @@
                 document.getElementById('tab-agenda').classList.add('active');
                 document.getElementById('tab-detalhes').classList.remove('active');
                 document.getElementById('content-agenda').classList.remove('hidden');
-                document.getElementById('content-detalhes').add('hidden');
+                document.getElementById('content-detalhes').classList.add('hidden');
             });
 
 
@@ -1321,11 +1330,11 @@
                     document.getElementById('calendar-modal').classList.remove('hidden');
                 }
                 if (e.target.closest('#prev-month-btn')) {
-                    calendarState.date.setMonth(calendarState.date.getMonth() - 1);
+                    calendarState.date.setUTCMonth(calendarState.date.getUTCMonth() - 1);
                     renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
                 }
                 if (e.target.closest('#next-month-btn')) {
-                    calendarState.date.setMonth(calendarState.date.getMonth() + 1);
+                    calendarState.date.setUTCMonth(calendarState.date.getUTCMonth() + 1);
                     renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
                 }
 
@@ -1455,4 +1464,3 @@
     </script>
 </body>
 </html>
-
