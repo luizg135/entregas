@@ -261,6 +261,100 @@
             color: #235937;
             background-color: #e8f5e9;
         }
+
+        /* --- Calendário --- */
+        .calendar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            text-align: center;
+        }
+        .calendar-day, .calendar-weekday {
+            padding: 4px;
+            font-size: 0.75rem;
+        }
+        .calendar-weekday {
+            font-weight: 600;
+            color: #6b7280;
+        }
+        .calendar-day {
+            cursor: default;
+            border-radius: 9999px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: auto;
+        }
+        .day-in-month { color: #374151; }
+        .day-not-in-month { color: #d1d5db; }
+        .day-today { background-color: #235937; color: white; }
+        .day-with-event { font-weight: bold; background-color: rgba(35, 89, 55, 0.2); }
+
+        /* Calendário Modal Completo */
+        #calendar-modal .modal-content { width: 90vw; max-width: 1200px; height: 90vh; }
+        .full-calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            grid-auto-rows: minmax(100px, auto);
+            gap: 1px;
+            background-color: #e5e7eb;
+            border: 1px solid #e5e7eb;
+            height: 100%;
+        }
+        .full-calendar-day {
+            background-color: white;
+            padding: 4px;
+            font-size: 0.8rem;
+            overflow-y: auto;
+        }
+        .full-calendar-day.not-in-month { background-color: #f9fafb; color: #9ca3af; }
+        .event-item {
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            margin-top: 2px;
+            border-radius: 4px;
+            background-color: #dcfce7;
+            color: #166534;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .event-span {
+            font-size: 0.75rem;
+            padding: 2px 4px;
+            margin-top: 2px;
+            border-radius: 4px;
+            color: white;
+            background-color: #22c55e;
+            display: block;
+        }
+
+
+        /* --- KPI Gauge --- */
+        .gauge-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+         .gauge-text {
+            position: absolute;
+            bottom: 25%;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -319,6 +413,20 @@
         </div>
     </div>
 
+    <!-- Modal de Calendário Completo -->
+    <div id="calendar-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                 <h2 id="calendar-modal-title" class="text-xl font-bold text-white">Calendário de Eventos</h2>
+                 <button id="calendar-close-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div id="calendar-modal-body" class="modal-body p-0 flex flex-col">
+                <!-- Calendário completo preenchido via JS -->
+            </div>
+        </div>
+    </div>
+
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const API_URL = 'https://entregas-api.vercel.app/api/dados';
@@ -328,6 +436,40 @@
             let carouselInterval;
             let sortConfig = { key: 'nome', direction: 'ascending' };
             let activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+            let calendarState = {
+                date: new Date()
+            };
+
+            // --- FUNÇÃO DE AJUDA PARA DATAS ---
+            /**
+             * Converte uma string de data (potencialmente em formato DD/MM/YYYY) para um objeto Date válido.
+             * @param {string} dateString A data em formato de string.
+             * @returns {Date|null} O objeto Date ou null se a string for inválida.
+             */
+            function parseDate(dateString) {
+                if (!dateString || typeof dateString !== 'string') return null;
+
+                // Tenta criar a data diretamente (funciona para YYYY-MM-DD e outros formatos ISO)
+                let date = new Date(dateString);
+                if (!isNaN(date.getTime())) {
+                    return date;
+                }
+
+                // Se falhar, tenta o formato DD/MM/YYYY
+                const parts = dateString.split('/');
+                if (parts.length === 3) {
+                    const [day, month, year] = parts;
+                    // O mês em JavaScript é 0-indexado (0-11)
+                    date = new Date(year, month - 1, day);
+                    if (!isNaN(date.getTime())) {
+                        return date;
+                    }
+                }
+                
+                // Retorna null se não conseguir interpretar a data
+                return null;
+            }
+
 
             // --- FUNÇÕES DE RENDERIZAÇÃO ---
             
@@ -401,15 +543,18 @@
                 if (!proximosLancamentos || proximosLancamentos.length === 0) return '';
                 
                 const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+
                 const dezProximos = proximosLancamentos
-                    .filter(c => new Date(c.dataLancamento) >= hoje)
-                    .sort((a, b) => new Date(a.dataLancamento) - new Date(b.dataLancamento))
+                    .map(c => ({...c, dateObj: parseDate(c.dataLancamento)}))
+                    .filter(c => c.dateObj && c.dateObj >= hoje)
+                    .sort((a, b) => a.dateObj - b.dateObj)
                     .slice(0, 10);
                 
                 if (dezProximos.length === 0) return `<div class="bg-white p-6 rounded-lg border border-gray-200 text-center text-gray-500">Nenhum lançamento futuro encontrado.</div>`;
 
                 const items = dezProximos.map(curso => {
-                    const data = new Date(curso.dataLancamento).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+                    const data = curso.dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
                     const formattedDate = data.charAt(0).toUpperCase() + data.slice(1);
                     return `
                         <div class="carousel-item" data-course-name="${curso.nome}" data-course-level="${curso.nivel}">
@@ -590,9 +735,13 @@
                 const prevBtn = document.getElementById('prev-btn');
                 const nextBtn = document.getElementById('next-btn');
 
+                const hoje = new Date();
+                hoje.setHours(0, 0, 0, 0);
+
                 const proximos = proximosLancamentos
-                    .filter(c => new Date(c.dataLancamento) >= new Date())
-                    .sort((a, b) => new Date(a.dataLancamento) - new Date(b.dataLancamento))
+                    .map(c => ({...c, dateObj: parseDate(c.dataLancamento)}))
+                    .filter(c => c.dateObj && c.dateObj >= hoje)
+                    .sort((a, b) => a.dateObj - b.dateObj)
                     .slice(0, 10);
                 
                 if (!track || proximos.length <= 5) {
@@ -643,21 +792,34 @@
 
             function renderRelatorios(indicadores, cursos) {
                 const container = document.getElementById('relatorio');
+                const kpiValue = (indicadores.totalCursos > 0) ? Math.round((indicadores.entregues / indicadores.totalCursos) * 100) : 0;
+
                  container.innerHTML = `
                     ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
                      <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
                         <div class="flex-shrink-0">${generateRelatorioCardsHTML(indicadores)}</div>
-                        <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col">
-                           <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
-                                <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
-                                <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
+                        <div class="flex-grow grid grid-cols-3 gap-6 min-h-0">
+                            <div class="col-span-2 bg-white border rounded-lg overflow-hidden flex flex-col">
+                               <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                                    <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
+                                    <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
+                                <div class="overflow-y-auto table-container">
+                                    ${generateRelatorioTableHTML(cursos)}
+                                </div>
                             </div>
-                            <div class="overflow-y-auto table-container">
-                                ${generateRelatorioTableHTML(cursos)}
+                            <div class="col-span-1 flex flex-col gap-6">
+                                <div id="calendar-summary-container" class="bg-white border rounded-lg p-4">
+                                    ${generateCalendarSummaryHTML(calendarState.date, dashboardData.eventosCalendario || [])}
+                                </div>
+                                <div id="kpi-gauge-container" class="bg-white border rounded-lg p-4 flex-grow flex flex-col">
+                                    <h3 class="text-center font-semibold text-gray-700 mb-2">Cursos Entregues</h3>
+                                    ${generateKpiGauge(kpiValue)}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -706,7 +868,8 @@
                 };
 
                 const tableRows = cursos.map(curso => {
-                    const data = curso.dataDisponivel ? new Date(curso.dataDisponivel).toLocaleDateString('pt-BR', {month: '2-digit', year: 'numeric', timeZone: 'UTC'}) : 'N/D';
+                    const dateObj = parseDate(curso.dataDisponivel);
+                    const data = dateObj ? dateObj.toLocaleDateString('pt-BR', {month: '2-digit', year: 'numeric', timeZone: 'UTC'}) : 'N/D';
                     const colorClass = getIndicatorColorClass(curso.indicadorReal * 100);
                     return `
                         <tr class="hover:bg-gray-50 cursor-pointer report-table-row" data-course-name="${curso.nome}" data-course-level="${curso.nivel}">
@@ -739,6 +902,121 @@
                 `;
             }
 
+            // --- FUNÇÕES DO CALENDÁRIO E KPI ---
+
+            function generateKpiGauge(percentage) {
+                const rotation = (percentage / 100) * 180 - 90;
+                const color = percentage < 30 ? '#ef4444' : percentage < 70 ? '#f59e0b' : '#22c55e';
+                return `
+                    <div class="gauge-container">
+                        <svg viewBox="0 0 100 57" class="w-full">
+                            <path d="M 5 50 A 45 45 0 0 1 95 50" fill="none" stroke="#e5e7eb" stroke-width="10" />
+                            <path d="M 5 50 A 45 45 0 0 1 95 50" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="141.37" stroke-dashoffset="${141.37 * (1 - percentage/100)}"/>
+                            <line x1="50" y1="50" x2="50" y2="15" stroke="#4b5563" stroke-width="2" transform="rotate(${rotation} 50 50)" />
+                            <circle cx="50" cy="50" r="4" fill="#4b5563"/>
+                        </svg>
+                        <div class="gauge-text">${percentage}%</div>
+                    </div>
+                `;
+            }
+
+            function generateCalendarSummaryHTML(date, events) {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const firstDayOfMonth = new Date(year, month, 1);
+                const lastDayOfMonth = new Date(year, month + 1, 0);
+                const firstDayOfWeek = firstDayOfMonth.getDay();
+                
+                const eventDates = new Set(events.map(e => parseDate(e.start)).filter(Boolean).map(d => d.toISOString().split('T')[0]));
+
+                let html = `
+                    <div class="flex justify-between items-center mb-2">
+                        <h3 class="font-semibold text-gray-700">${date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+                        <button id="expand-calendar-btn" class="text-sm text-green-700 hover:underline">Expandir</button>
+                    </div>
+                    <div class="calendar-grid">
+                        ${['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map(d => `<div class="calendar-weekday">${d}</div>`).join('')}
+                `;
+
+                for (let i = 0; i < firstDayOfWeek; i++) {
+                    html += `<div></div>`;
+                }
+
+                for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+                    const currentDate = new Date(year, month, day);
+                    const currentDateStr = currentDate.toISOString().split('T')[0];
+                    let classes = 'calendar-day day-in-month';
+                    if (currentDate.getTime() === today.getTime()) classes += ' day-today';
+                    if (eventDates.has(currentDateStr)) classes += ' day-with-event';
+                    html += `<div class="${classes}">${day}</div>`;
+                }
+                html += `</div>`;
+                return html;
+            }
+
+            function renderFullCalendar(date, events) {
+                const year = date.getFullYear();
+                const month = date.getMonth();
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const firstDayOfMonth = new Date(year, month, 1);
+
+                let startDate = new Date(firstDayOfMonth);
+                startDate.setDate(startDate.getDate() - startDate.getDay());
+
+                const container = document.getElementById('calendar-modal-body');
+                container.innerHTML = `
+                    <div class="calendar-header border-b">
+                        <button id="prev-month-btn" class="p-2 rounded-full hover:bg-gray-100">&lt;</button>
+                        <h3 class="font-bold text-lg text-gray-800">${date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</h3>
+                        <button id="next-month-btn" class="p-2 rounded-full hover:bg-gray-100">&gt;</button>
+                    </div>
+                    <div class="grid grid-cols-7 text-center font-semibold text-sm border-b">
+                        ${['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'].map(d => `<div class="py-2">${d}</div>`).join('')}
+                    </div>
+                    <div id="full-calendar-grid" class="full-calendar-grid flex-grow"></div>
+                `;
+
+                const grid = document.getElementById('full-calendar-grid');
+                let dayCounter = new Date(startDate);
+                
+                for(let i=0; i<42; i++) {
+                    const dayCell = document.createElement('div');
+                    const isNotInMonth = dayCounter.getMonth() !== month;
+                    dayCell.className = `full-calendar-day ${isNotInMonth ? 'not-in-month' : ''}`;
+                    dayCell.innerHTML = `<div class="font-medium ${dayCounter.getTime() === today.getTime() ? 'text-red-500' : ''}">${dayCounter.getDate()}</div>`;
+                    dayCell.dataset.date = dayCounter.toISOString().split('T')[0];
+                    grid.appendChild(dayCell);
+                    dayCounter.setDate(dayCounter.getDate() + 1);
+                }
+                
+                events.forEach(event => {
+                    const start = parseDate(event.start);
+                    const end = event.end ? parseDate(event.end) : new Date(start);
+                    if (!start) return;
+
+                    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                        const dateStr = d.toISOString().split('T')[0];
+                        const cell = grid.querySelector(`[data-date="${dateStr}"]`);
+                        if(cell){
+                            const eventDiv = document.createElement('div');
+                            eventDiv.className = 'event-item';
+                            eventDiv.title = event.title;
+                            eventDiv.textContent = event.title;
+                            if(event.type === 'Feriado') {
+                                eventDiv.style.backgroundColor = '#fee2e2';
+                                eventDiv.style.color = '#b91c1c';
+                            }
+                            cell.appendChild(eventDiv);
+                        }
+                    }
+                });
+            }
+
 
             function renderPedagogos() {
                 document.getElementById('pedagogos').innerHTML = `
@@ -760,7 +1038,6 @@
                     ? dashboardData.fullCronograma
                     : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
                 
-                // Aplicar filtros de modal
                 let filteredCourses = filteredCoursesByYear.filter(course => {
                     return (activeFilters.tecnico.length === 0 || activeFilters.tecnico.includes(course.tecnico)) &&
                            (activeFilters.pedagogo.length === 0 || activeFilters.pedagogo.includes(course.pedagogo)) &&
@@ -769,17 +1046,21 @@
                            (activeFilters.tipo.length === 0 || activeFilters.tipo.includes(course.tipo));
                 });
                 
-                // Aplicar a ordenação
                 filteredCourses.sort((a, b) => {
                     const key = sortConfig.key;
                     const direction = sortConfig.direction === 'ascending' ? 1 : -1;
-                    const valA = a[key] || '';
-                    const valB = b[key] || '';
-
+                    
                     if (key === 'dataDisponivel') {
-                        return (new Date(valA) - new Date(valB)) * direction;
+                        const dateA = parseDate(a[key]);
+                        const dateB = parseDate(b[key]);
+                        if (!dateA && !dateB) return 0;
+                        if (!dateA) return 1 * direction;
+                        if (!dateB) return -1 * direction;
+                        return (dateA - dateB) * direction;
                     }
 
+                    const valA = a[key] || '';
+                    const valB = b[key] || '';
                     if (typeof valA === 'string') {
                         return valA.localeCompare(valB) * direction;
                     }
@@ -825,7 +1106,6 @@
 
             // --- Lógica do Modal ---
             function openModal(courseName, courseLevel) {
-                // Reset tabs
                 document.getElementById('tab-detalhes').classList.add('active');
                 document.getElementById('tab-agenda').classList.remove('active');
                 document.getElementById('content-detalhes').classList.remove('hidden');
@@ -835,20 +1115,19 @@
                 if (!course) return;
                 
                 const percentual = course.indicadorReal ? `${(course.indicadorReal * 100).toFixed(0)}%` : '';
-                const dataEntrega = course.dataDisponivel ? new Date(course.dataDisponivel).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
-                const formattedEntrega = dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1);
+                const dateObj = parseDate(course.dataDisponivel);
+                const dataEntrega = dateObj ? dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
+                const formattedEntrega = dataEntrega !== 'N/D' ? dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1) : 'N/D';
 
-                 // Dynamic Header Color
                 const modalHeader = document.querySelector('#course-modal .modal-header');
                 const percentageValue = course.indicadorReal ? course.indicadorReal * 100 : -1;
-                let headerColor = '#6b7280'; // Default gray
-                if (percentageValue >= 0 && percentageValue <= 5) headerColor = '#6b7280'; // gray-500
-                else if (percentageValue >= 6 && percentageValue <= 15) headerColor = '#ef4444'; // red-500
-                else if (percentageValue >= 16 && percentageValue <= 30) headerColor = '#f97316'; // orange-500
-                else if (percentageValue >= 31 && percentageValue <= 70) headerColor = '#4d7c0f'; // lime-500 - Adjusted green
-                else if (percentageValue > 70) headerColor = '#235937'; // dark green
+                let headerColor = '#6b7280'; 
+                if (percentageValue >= 0 && percentageValue <= 5) headerColor = '#6b7280';
+                else if (percentageValue >= 6 && percentageValue <= 15) headerColor = '#ef4444';
+                else if (percentageValue >= 16 && percentageValue <= 30) headerColor = '#f97316';
+                else if (percentageValue >= 31 && percentageValue <= 70) headerColor = '#4d7c0f';
+                else if (percentageValue > 70) headerColor = '#235937';
                 modalHeader.style.backgroundColor = headerColor;
-
 
                 document.getElementById('modal-course-name').innerHTML = `
                     <span class="text-xl font-bold">${course.nome}</span>
@@ -868,51 +1147,48 @@
                             <p class="text-gray-500 font-semibold">Nível do Curso</p>
                             <p class="text-gray-900">${course.nivel || 'N/D'}</p>
                         </div>
-                        <div>
-                            <p class="text-gray-500 font-semibold">Tipo</p>
-                            <p class="text-gray-900">${course.tipo || 'N/D'}</p>
-                        </div>
-                        <div>
-                            <p class="text-gray-500 font-semibold">Técnico Responsável</p>
-                            <p class="text-gray-900">${course.tecnico || 'N/D'}</p>
-                        </div>
-                        <div>
-                            <p class="text-gray-500 font-semibold">Pedagogo Responsável</p>
-                            <p class="text-gray-900">${course.pedagogo || 'N/D'}</p>
-                        </div>
+                        <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
+                        <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
+                        <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
                     </div>
                 `;
                 
                 const allEvents = new Map();
-                const toDateKey = (date) => date ? new Date(date).toISOString().split('T')[0] : '';
+                const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
                 
                 const mainCourseEvents = dashboardData.fullCronograma.filter(c => c.nome === courseName && c.nivel === courseLevel);
                 mainCourseEvents.forEach(c => {
-                    if (c.pilotoInicio && c.pilotoFim) {
-                        const key = `piloto-${toDateKey(c.pilotoInicio)}-${toDateKey(c.pilotoFim)}`;
+                    const pilotoInicio = parseDate(c.pilotoInicio);
+                    const pilotoFim = parseDate(c.pilotoFim);
+                    if (pilotoInicio && pilotoFim) {
+                        const key = `piloto-${toDateKey(pilotoInicio)}-${toDateKey(pilotoFim)}`;
                         if (!allEvents.has(key)) {
-                            allEvents.set(key, { type: 'Piloto', inicio: c.pilotoInicio, fim: c.pilotoFim });
+                            allEvents.set(key, { type: 'Piloto', inicio: pilotoInicio, fim: pilotoFim });
                         }
                     }
-                    if (c.formacaoInicio && c.formacaoFim) {
-                         const key = `formacao-${toDateKey(c.formacaoInicio)}-${toDateKey(c.formacaoFim)}`;
+                    const formacaoInicio = parseDate(c.formacaoInicio);
+                    const formacaoFim = parseDate(c.formacaoFim);
+                    if (formacaoInicio && formacaoFim) {
+                         const key = `formacao-${toDateKey(formacaoInicio)}-${toDateKey(formacaoFim)}`;
                          if (!allEvents.has(key)) {
-                            allEvents.set(key, { type: 'Formação', inicio: c.formacaoInicio, fim: c.formacaoFim });
+                            allEvents.set(key, { type: 'Formação', inicio: formacaoInicio, fim: formacaoFim });
                          }
                     }
                 });
                 
                 const formationEvents = dashboardData.formacoes.filter(f => f.curso.includes(courseName));
                  formationEvents.forEach(f => {
-                    if (f.inicio && f.fim) {
-                        const key = `formacao-${toDateKey(f.inicio)}-${toDateKey(f.fim)}`;
+                    const inicio = parseDate(f.inicio);
+                    const fim = parseDate(f.fim);
+                    if (inicio && fim) {
+                        const key = `formacao-${toDateKey(inicio)}-${toDateKey(fim)}`;
                         if (!allEvents.has(key)) {
-                            allEvents.set(key, { type: 'Formação', inicio: f.inicio, fim: f.fim });
+                            allEvents.set(key, { type: 'Formação', inicio: inicio, fim: fim });
                         }
                     }
                 });
 
-                const sortedEvents = Array.from(allEvents.values()).sort((a,b) => new Date(a.inicio) - new Date(b.inicio));
+                const sortedEvents = Array.from(allEvents.values()).sort((a,b) => a.inicio - b.inicio);
 
                 const agendaContent = document.getElementById('content-agenda');
                 if (sortedEvents.length > 0) {
@@ -920,7 +1196,7 @@
                     today.setHours(0,0,0,0);
                     
                     agendaContent.innerHTML = sortedEvents.map(event => {
-                        const endDate = new Date(event.fim);
+                        const endDate = event.fim;
                         const isPast = endDate < today;
                         const dateClass = isPast ? 'text-gray-400' : 'text-gray-800 font-semibold';
                         const iconColor = isPast ? 'bg-gray-300 text-gray-600' : 'bg-green-100 text-green-800';
@@ -946,7 +1222,7 @@
                                 </div>
                                 <div>
                                     <p class="font-bold text-gray-700">${eventTypeLabel}</p>
-                                    <p class="${dateClass} text-sm">${new Date(event.inicio).toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${new Date(event.fim).toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                                    <p class="${dateClass} text-sm">${event.inicio.toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${event.fim.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
                                 </div>
                             </div>
                         `;
@@ -964,6 +1240,9 @@
             document.getElementById('filter-close-btn').addEventListener('click', () => {
                 document.getElementById('filter-modal').classList.add('hidden');
             });
+            document.getElementById('calendar-close-btn').addEventListener('click', () => {
+                document.getElementById('calendar-modal').classList.add('hidden');
+            });
 
             document.getElementById('tab-detalhes').addEventListener('click', () => {
                 document.getElementById('tab-detalhes').classList.add('active');
@@ -975,7 +1254,7 @@
                 document.getElementById('tab-agenda').classList.add('active');
                 document.getElementById('tab-detalhes').classList.remove('active');
                 document.getElementById('content-agenda').classList.remove('hidden');
-                document.getElementById('content-detalhes').classList.add('hidden');
+                document.getElementById('content-detalhes').add('hidden');
             });
 
 
@@ -1037,6 +1316,19 @@
                 if (e.target.closest('#clear-filters-btn')) {
                     clearFilters();
                 }
+                if (e.target.closest('#expand-calendar-btn')) {
+                    renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
+                    document.getElementById('calendar-modal').classList.remove('hidden');
+                }
+                if (e.target.closest('#prev-month-btn')) {
+                    calendarState.date.setMonth(calendarState.date.getMonth() - 1);
+                    renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
+                }
+                if (e.target.closest('#next-month-btn')) {
+                    calendarState.date.setMonth(calendarState.date.getMonth() + 1);
+                    renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
+                }
+
 
             });
             
@@ -1163,3 +1455,4 @@
     </script>
 </body>
 </html>
+
