@@ -449,17 +449,12 @@
              */
             function parseDate(dateInput) {
                 if (!dateInput) return null;
-
-                // Se já for um objeto Date válido, apenas normalize para UTC e retorne
                 if (dateInput instanceof Date && !isNaN(dateInput)) {
                     return new Date(Date.UTC(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate()));
                 }
-
                 if (typeof dateInput !== 'string') return null;
                 
                 let date;
-
-                // Tenta detectar e analisar o formato DD/MM/YYYY (comum no Brasil)
                 const parts = dateInput.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
                 if (parts) {
                     const day = parseInt(parts[1], 10);
@@ -470,17 +465,119 @@
                         if (!isNaN(date.getTime())) return date;
                     }
                 }
-
-                // Se o formato acima falhar ou não corresponder, tente a análise direta do navegador
-                // Isso lida com formatos ISO como "YYYY-MM-DD"
                 date = new Date(dateInput);
                 if (!isNaN(date.getTime())) {
-                    // Normaliza para UTC para consistência
-                    return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                    return new Date(date.getTime() + userTimezoneOffset);
                 }
-
                 console.warn(`Não foi possível analisar o formato da data: "${dateInput}"`);
                 return null;
+            }
+
+             /**
+             * Processa e unifica todos os eventos de diferentes fontes da API em um único array.
+             * @param {object} apiData - O objeto de dados completo da API.
+             * @returns {Array} - Um array de objetos de evento padronizados.
+             */
+            function processAndUnifyEvents(apiData) {
+                const allEvents = [];
+                const processed = apiData.dadosProcessados || {};
+
+                // 1. De `eventosCalendario`
+                if (Array.isArray(apiData.eventosCalendario)) {
+                    apiData.eventosCalendario.forEach(event => {
+                        const startDate = parseDate(event.date);
+                        if (startDate) {
+                            allEvents.push({
+                                title: event.title,
+                                start: startDate,
+                                end: startDate,
+                                type: event.type || 'evento'
+                            });
+                        }
+                    });
+                }
+                
+                // 2. De `dadosProcessados.cursos` (pilotos e formações)
+                if (Array.isArray(processed.cursos)) {
+                    processed.cursos.forEach(curso => {
+                        const pilotoInicio = parseDate(curso.pilotoInicio);
+                        if (pilotoInicio) {
+                            const pilotoFim = parseDate(curso.pilotoFim) || pilotoInicio;
+                            allEvents.push({
+                                title: `Piloto: ${curso.nome}`,
+                                start: pilotoInicio,
+                                end: pilotoFim,
+                                type: 'piloto'
+                            });
+                        }
+                        const formacaoInicio = parseDate(curso.formacaoInicio);
+                        if (formacaoInicio) {
+                             const formacaoFim = parseDate(curso.formacaoFim) || formacaoInicio;
+                            allEvents.push({
+                                title: `Formação: ${curso.nome}`,
+                                start: formacaoInicio,
+                                end: formacaoFim,
+                                type: 'formacao'
+                            });
+                        }
+                    });
+                }
+
+                // 3. De `dadosProcessados.formacoes`
+                if (Array.isArray(processed.formacoes)) {
+                     processed.formacoes.forEach(formacao => {
+                        const inicio = parseDate(formacao.inicio);
+                        if (inicio) {
+                            const fim = parseDate(formacao.fim) || inicio;
+                            allEvents.push({
+                                title: `Formação: ${formacao.curso}`,
+                                start: inicio,
+                                end: fim,
+                                type: 'formacao'
+                            });
+                        }
+                     });
+                }
+                
+                // 4. De `dadosProcessados.eventos`
+                if (Array.isArray(processed.eventos)) {
+                    processed.eventos.forEach(evento => {
+                        const inicio = parseDate(evento.inicio);
+                        if(inicio){
+                            const fim = parseDate(evento.fim) || inicio;
+                            allEvents.push({
+                                title: `${evento.tipo}: ${evento.tema}`,
+                                start: inicio,
+                                end: fim,
+                                type: evento.tipo || 'evento'
+                            });
+                        }
+                    });
+                }
+                
+                // 5. De `dadosProcessados.outrasAtividades`
+                if (Array.isArray(processed.outrasAtividades)) {
+                    processed.outrasAtividades.forEach(atividade => {
+                        const inicio = parseDate(atividade.inicio);
+                        if (inicio) {
+                            const fim = parseDate(atividade.fim) || inicio;
+                            allEvents.push({
+                                title: `${atividade.tipo}: ${atividade.tema}`,
+                                start: inicio,
+                                end: fim,
+                                type: atividade.tipo || 'evento'
+                            });
+                        }
+                    });
+                }
+
+
+                // Remove duplicados baseados no título e data de início
+                const uniqueEvents = Array.from(new Map(allEvents.map(event =>
+                    [`${event.title}-${event.start.toISOString()}`, event])).values());
+
+                return uniqueEvents;
             }
 
 
@@ -825,7 +922,7 @@
                             </div>
                             <div class="col-span-1 flex flex-col gap-6">
                                 <div id="calendar-summary-container" class="bg-white border rounded-lg p-4">
-                                    ${generateCalendarSummaryHTML(calendarState.date, dashboardData.eventosCalendario || [])}
+                                    ${generateCalendarSummaryHTML(calendarState.date, dashboardData.allEvents || [])}
                                 </div>
                                 <div id="kpi-gauge-container" class="bg-white border rounded-lg p-4 flex-grow flex flex-col">
                                     <h3 class="text-center font-semibold text-gray-700 mb-2">Cursos Entregues</h3>
@@ -941,7 +1038,14 @@
                 const lastDayOfMonth = new Date(Date.UTC(year, month + 1, 0));
                 const firstDayOfWeek = firstDayOfMonth.getUTCDay();
                 
-                const eventDates = new Set(events.map(e => parseDate(e.start)).filter(Boolean).map(d => d.toISOString().split('T')[0]));
+                const eventDates = new Set();
+                events.forEach(event => {
+                    const end = event.end || event.start;
+                    for (let d = new Date(event.start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+                        eventDates.add(d.toISOString().split('T')[0]);
+                    }
+                });
+
 
                 let html = `
                     <div class="flex justify-between items-center mb-2">
@@ -1006,12 +1110,10 @@
                 }
                 
                 events.forEach(event => {
-                    const start = parseDate(event.start);
-                    if (!start) return;
-                    const end = event.end ? parseDate(event.end) : start;
-                    if (!end) return;
+                    if (!event.start) return;
+                    const end = event.end || event.start;
 
-                    for (let d = new Date(start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
+                    for (let d = new Date(event.start); d <= end; d.setUTCDate(d.getUTCDate() + 1)) {
                         const dateStr = d.toISOString().split('T')[0];
                         const cell = grid.querySelector(`[data-date="${dateStr}"]`);
                         if(cell){
@@ -1019,7 +1121,7 @@
                             eventDiv.className = 'event-item';
                             eventDiv.title = event.title;
                             eventDiv.textContent = event.title;
-                            if(event.type === 'Feriado') {
+                            if(event.type === 'Feriado' || event.type === 'Férias') {
                                 eventDiv.style.backgroundColor = '#fee2e2';
                                 eventDiv.style.color = '#b91c1c';
                             }
@@ -1168,16 +1270,16 @@
                 const mainCourseEvents = dashboardData.fullCronograma.filter(c => c.nome === courseName && c.nivel === courseLevel);
                 mainCourseEvents.forEach(c => {
                     const pilotoInicio = parseDate(c.pilotoInicio);
-                    const pilotoFim = parseDate(c.pilotoFim);
-                    if (pilotoInicio && pilotoFim) {
+                    if (pilotoInicio) {
+                        const pilotoFim = parseDate(c.pilotoFim) || pilotoInicio;
                         const key = `piloto-${toDateKey(pilotoInicio)}-${toDateKey(pilotoFim)}`;
                         if (!allEvents.has(key)) {
                             allEvents.set(key, { type: 'Piloto', inicio: pilotoInicio, fim: pilotoFim });
                         }
                     }
                     const formacaoInicio = parseDate(c.formacaoInicio);
-                    const formacaoFim = parseDate(c.formacaoFim);
-                    if (formacaoInicio && formacaoFim) {
+                    if (formacaoInicio) {
+                         const formacaoFim = parseDate(c.formacaoFim) || formacaoInicio;
                          const key = `formacao-${toDateKey(formacaoInicio)}-${toDateKey(formacaoFim)}`;
                          if (!allEvents.has(key)) {
                             allEvents.set(key, { type: 'Formação', inicio: formacaoInicio, fim: formacaoFim });
@@ -1188,8 +1290,8 @@
                 const formationEvents = dashboardData.formacoes.filter(f => f.curso.includes(courseName));
                  formationEvents.forEach(f => {
                     const inicio = parseDate(f.inicio);
-                    const fim = parseDate(f.fim);
-                    if (inicio && fim) {
+                    if (inicio) {
+                        const fim = parseDate(f.fim) || inicio;
                         const key = `formacao-${toDateKey(inicio)}-${toDateKey(fim)}`;
                         if (!allEvents.has(key)) {
                             allEvents.set(key, { type: 'Formação', inicio: inicio, fim: fim });
@@ -1326,16 +1428,16 @@
                     clearFilters();
                 }
                 if (e.target.closest('#expand-calendar-btn')) {
-                    renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
+                    renderFullCalendar(calendarState.date, dashboardData.allEvents || []);
                     document.getElementById('calendar-modal').classList.remove('hidden');
                 }
                 if (e.target.closest('#prev-month-btn')) {
                     calendarState.date.setUTCMonth(calendarState.date.getUTCMonth() - 1);
-                    renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
+                    renderFullCalendar(calendarState.date, dashboardData.allEvents || []);
                 }
                 if (e.target.closest('#next-month-btn')) {
                     calendarState.date.setUTCMonth(calendarState.date.getUTCMonth() + 1);
-                    renderFullCalendar(calendarState.date, dashboardData.eventosCalendario || []);
+                    renderFullCalendar(calendarState.date, dashboardData.allEvents || []);
                 }
 
 
@@ -1440,14 +1542,16 @@
                         nivel: c.nivel,
                         anoDisponivel: c.anoDisponivel
                     }));
+                    
+                    const allEvents = processAndUnifyEvents(apiResponse);
 
                     dashboardData = {
                         analises: apiResponse.analises,
                         cronograma: transformedCronograma,
                         proximosLancamentos: apiResponse.proximosLancamentos || [],
                         fullCronograma: apiResponse.dadosProcessados.cursos || [],
-                        eventosCalendario: apiResponse.eventosCalendario || [],
-                        formacoes: apiResponse.dadosProcessados.formacoes || []
+                        formacoes: apiResponse.dadosProcessados.formacoes || [],
+                        allEvents: allEvents // Usar a lista unificada
                     };
                     
                     selectedYear = new Date().getFullYear().toString(); 
