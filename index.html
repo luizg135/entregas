@@ -268,9 +268,29 @@
 
         /* --- Estilos para o FullCalendar --- */
         #calendar-modal .modal-content { 
-            width: 90vw; 
-            max-width: 1200px; 
+            width: 95vw; 
+            max-width: 1400px; 
             height: 90vh; 
+        }
+        #calendar-modal-body {
+            display: flex;
+            flex-direction: row;
+            padding: 0;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        #calendar-filters-container {
+            width: 280px;
+            flex-shrink: 0;
+            transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
+            background-color: #f3f4f6;
+            border-left: 1px solid #e5e7eb;
+        }
+        #calendar-filters-container.hidden {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+            border-left: none;
         }
 
         .fc .fc-button-primary {
@@ -290,7 +310,7 @@
             background: rgba(35, 89, 55, 0.1) !important;
         }
         .fc .fc-daygrid-event {
-            margin-bottom: 3px !important;
+            margin-bottom: 4px !important; 
             padding-top: 2px;
             padding-bottom: 2px;
         }
@@ -396,12 +416,13 @@
                     <button id="calendar-close-btn" class="modal-close-btn">&times;</button>
                  </div>
             </div>
-            <div id="calendar-filters-container" class="hidden p-3 bg-gray-100 border-b">
-                 <!-- Filtros do Calendário preenchidos via JS -->
-            </div>
-            <!-- O body agora é um container para o FullCalendar -->
-            <div id="calendar-modal-body" class="modal-body p-4 bg-white flex-grow">
-                <div id="full-calendar-container" class="w-full h-full"></div>
+            <div id="calendar-modal-body">
+                <div id="full-calendar-wrapper" class="p-4 flex-grow">
+                    <div id="full-calendar-container" class="w-full h-full"></div>
+                </div>
+                <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
+                     <!-- Filtros do Calendário preenchidos via JS -->
+                </div>
             </div>
         </div>
     </div>
@@ -494,6 +515,7 @@
                 allSources.forEach(item => {
                     let eventType = item.type || item.etapaAtual || 'Evento';
                     let pedagogo = item.pedagogo || item.responsavel;
+                    let tecnico = item.tecnico;
 
                     if (item.pilotoInicio) {
                         addEvent({
@@ -501,7 +523,7 @@
                             start: parseDate(item.pilotoInicio),
                             end: parseDate(item.pilotoFim) || parseDate(item.pilotoInicio),
                             pedagogo: pedagogo,
-                            extendedProps: { eventType: 'piloto', courseName: item.nome, courseLevel: item.nivel, tecnico: item.tecnico, pedagogo: pedagogo }
+                            extendedProps: { eventType: 'piloto', courseName: item.nome, courseLevel: item.nivel, tecnico: tecnico, pedagogo: pedagogo }
                         });
                     }
                     if (item.formacaoInicio) {
@@ -510,7 +532,7 @@
                             start: parseDate(item.formacaoInicio),
                             end: parseDate(item.formacaoFim) || parseDate(item.formacaoInicio),
                             pedagogo: pedagogo,
-                            extendedProps: { eventType: 'formacao', courseName: item.nome, courseLevel: item.nivel, tecnico: item.tecnico, pedagogo: pedagogo }
+                            extendedProps: { eventType: 'formacao', courseName: item.nome, courseLevel: item.nivel, tecnico: tecnico, pedagogo: pedagogo }
                         });
                     }
                     if (item.date) { // de eventosCalendario
@@ -519,7 +541,7 @@
                             start: parseDate(item.date),
                             end: parseDate(item.date),
                             pedagogo: null,
-                            extendedProps: { eventType: item.type || 'evento', tecnico: item.tecnico, pedagogo: pedagogo }
+                            extendedProps: { eventType: item.type || 'evento', tecnico: tecnico, pedagogo: pedagogo }
                         });
                     }
                      if (item.tema) { // de outrasAtividades e eventos
@@ -528,7 +550,7 @@
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
                             pedagogo: item.responsavel,
-                            extendedProps: { eventType: item.tipo || 'evento', tecnico: item.tecnico, pedagogo: item.responsavel }
+                            extendedProps: { eventType: item.tipo || 'evento', tecnico: tecnico, pedagogo: item.responsavel }
                         });
                     }
                 });
@@ -572,8 +594,8 @@
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
                                 <div class="search-suggestions hidden absolute mt-1 w-full bg-white rounded-lg shadow-xl z-10 border max-h-60 overflow-y-auto"></div>
                             </div>
-                            <button id="header-calendar-btn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50" title="Abrir Calendário">
-                                <svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <button id="header-calendar-btn" class="p-2 rounded-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400/50 bg-green-700 text-white" title="Abrir Calendário">
+                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             </button>
                             <div class="relative">
                                 <button class="menu-button p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50"><svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
@@ -879,14 +901,13 @@
                     }
 
                     const activeClass = isActive ? 'bg-green-700 text-white' : 'bg-white text-gray-700 hover:bg-gray-100';
-                    return `<button class="tecnico-filter-btn flex-shrink-0 px-4 py-2 text-sm font-medium border rounded-md transition-colors ${activeClass}" data-tecnico="${tecnico}">
+                    return `<button class="tecnico-filter-btn flex-shrink-0 px-4 py-3 text-sm font-medium border rounded-md transition-colors ${activeClass}" data-tecnico="${tecnico}">
                                 ${tecnico}
                             </button>`;
                 }).join('');
 
                 return `
                     <div class="bg-white p-4 rounded-lg border">
-                        <h3 class="font-semibold text-gray-700 mb-3">Filtrar por Técnico:</h3>
                         <div class="flex space-x-2 overflow-x-auto pb-2 tecnico-filter-container">
                             ${buttonsHTML}
                         </div>
@@ -1040,19 +1061,19 @@
                 const createCheckboxes = (title, items, filterKey) => {
                     if (items.length === 0) return '';
                     let checkboxes = items.map(item => `
-                        <label class="flex items-center text-sm">
-                            <input type="checkbox" class="calendar-filter-checkbox h-4 w-4 rounded" data-filter-key="${filterKey}" value="${item}">
-                            <span class="ml-2">${item}</span>
+                        <label class="flex items-center text-sm p-1 rounded hover:bg-gray-200">
+                            <input type="checkbox" class="calendar-filter-checkbox h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" data-filter-key="${filterKey}" value="${item}">
+                            <span class="ml-2 text-gray-700">${item}</span>
                         </label>
                     `).join('');
-                    return `<div class="flex-1 min-w-[150px]">
-                                <h4 class="font-semibold mb-1 text-sm">${title}</h4>
+                    return `<div class="mb-4">
+                                <h4 class="font-semibold mb-2 text-gray-800">${title}</h4>
                                 <div class="space-y-1">${checkboxes}</div>
                            </div>`;
                 };
 
                 container.innerHTML = `
-                    <div class="flex flex-wrap gap-4">
+                    <div class="p-2">
                         ${createCheckboxes('Técnico', tecnicos, 'tecnico')}
                         ${createCheckboxes('Pedagogo', pedagogos, 'pedagogo')}
                         ${createCheckboxes('Tipo de Evento', types, 'type')}
@@ -1096,7 +1117,7 @@
                     headerToolbar: {
                         left: 'prev,next today',
                         center: 'title',
-                        right: 'dayGridMonth,timeGridWeek,listWeek'
+                        right: 'dayGridMonth,listWeek'
                     },
                     locale: 'pt-br',
                     buttonText: {
