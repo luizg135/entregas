@@ -331,6 +331,9 @@
         #full-calendar-container .fc-header-toolbar .fc-button {
              margin: 0 4px;
         }
+        .fc-event {
+            cursor: pointer;
+        }
 
         /* --- KPI Gauge --- */
         .gauge-container {
@@ -439,7 +442,7 @@
             let sortConfig = { key: 'nome', direction: 'ascending' };
             let activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
             let fullCalendarInstance = null;
-            let calendarFilters = { tecnico: [], pedagogo: [], type: [] };
+            let calendarFilters = { tecnico: [], pedagogo: [] };
 
             // --- FUNÇÕES DE AJUDA ---
             function parseDate(dateInput) {
@@ -491,6 +494,23 @@
             function processAndUnifyEvents(apiData) {
                 const allEvents = [];
                 if (!apiData) return allEvents;
+
+                // Create master lists of all known technicians and pedagogues
+                const allKnownTecnicos = new Set();
+                const allKnownPedagogos = new Set();
+                (apiData.cursos || []).forEach(curso => {
+                    if (curso.equipe.tecnico) allKnownTecnicos.add(curso.equipe.tecnico);
+                    if (curso.equipe.pedagogo) allKnownPedagogos.add(curso.equipe.pedagogo);
+                    (curso.eventosAssociados || []).forEach(evento => {
+                        if (evento.pedagogo) allKnownPedagogos.add(evento.pedagogo);
+                    });
+                });
+                (apiData.atividadesExtras?.tecnicos || []).forEach(item => {
+                    if (item.responsavel) allKnownTecnicos.add(item.responsavel);
+                });
+                (apiData.atividadesExtras?.pedagogos || []).forEach(item => {
+                    if (item.responsavel) allKnownPedagogos.add(item.responsavel);
+                });
             
                 const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
             
@@ -528,6 +548,17 @@
             
                 // Eventos do calendário
                 (apiData.calendarioEventos || []).forEach(item => {
+                    let tecnico = item.propriedades.tecnico;
+                    let pedagogo = item.propriedades.pedagogo;
+                    const responsavel = item.propriedades.responsavel;
+
+                    if (responsavel && !tecnico && !pedagogo) {
+                        if (allKnownTecnicos.has(responsavel)) {
+                            tecnico = responsavel;
+                        } else if (allKnownPedagogos.has(responsavel)) {
+                            pedagogo = responsavel;
+                        }
+                    }
                     addEvent({
                         title: item.titulo,
                         start: parseDate(item.dataInicio),
@@ -536,15 +567,15 @@
                             eventType: item.tipo.toLowerCase(),
                             courseName: item.propriedades.nomeCurso,
                             courseLevel: item.propriedades.nivelCurso,
-                            tecnico: item.propriedades.tecnico,
-                            pedagogo: item.propriedades.pedagogo
+                            tecnico: tecnico,
+                            pedagogo: pedagogo
                         }
                     });
                 });
             
                 // Atividades extras
-                if (apiData.atividadesExtras && apiData.atividadesExtras.pedagogos) {
-                    apiData.atividadesExtras.pedagogos.forEach(item => {
+                if (apiData.atividadesExtras) {
+                    (apiData.atividadesExtras.pedagogos || []).forEach(item => {
                         addEvent({
                             title: `${item.tipo}: ${item.tema}`,
                             start: parseDate(item.inicio),
@@ -553,6 +584,18 @@
                                 eventType: item.tipo.toLowerCase(),
                                 tecnico: null,
                                 pedagogo: item.responsavel
+                            }
+                        });
+                    });
+                     (apiData.atividadesExtras.tecnicos || []).forEach(item => {
+                        addEvent({
+                            title: `${item.tipo}: ${item.tema}`,
+                            start: parseDate(item.inicio),
+                            end: parseDate(item.fim) || parseDate(item.inicio),
+                            extendedProps: {
+                                eventType: item.tipo.toLowerCase(),
+                                tecnico: item.responsavel,
+                                pedagogo: null
                             }
                         });
                     });
@@ -983,7 +1026,7 @@
                                 ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
                             </div>
                              <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
-                                <h3 class="text-center font-semibold text-gray-700 mb-2">KPI Médio dos Cursos</h3>
+                                <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
                                 ${generateKpiGauge(kpiValue)}
                             </div>
                         </div>
@@ -1105,7 +1148,6 @@
                 const { allEvents } = dashboardData;
                 const tecnicos = [...new Set(allEvents.map(e => e.extendedProps.tecnico).filter(Boolean))].sort();
                 const pedagogos = [...new Set(allEvents.map(e => e.extendedProps.pedagogo).filter(Boolean))].sort();
-                const types = [...new Set(allEvents.map(e => e.extendedProps.eventType).filter(Boolean))].sort();
 
                 const createCheckboxes = (title, items, filterKey) => {
                     if (items.length === 0) return '';
@@ -1125,7 +1167,6 @@
                     <div class="p-2">
                         ${createCheckboxes('Técnico', tecnicos, 'tecnico')}
                         ${createCheckboxes('Pedagogo', pedagogos, 'pedagogo')}
-                        ${createCheckboxes('Tipo de Evento', types, 'type')}
                     </div>
                 `;
             }
@@ -1139,20 +1180,17 @@
                 // Apply calendar filters
                 const activeTecnicos = calendarFilters.tecnico;
                 const activePedagogos = calendarFilters.pedagogo;
-                const activeTypes = calendarFilters.type;
 
-                if (activeTecnicos.length > 0 || activePedagogos.length > 0 || activeTypes.length > 0) {
+                if (activeTecnicos.length > 0 || activePedagogos.length > 0) {
                     eventsToRender = eventsToRender.filter(event => {
                         const props = event.extendedProps;
                         const tecnico = props.tecnico || '';
                         const pedagogo = props.pedagogo || '';
-                        const type = props.eventType || '';
 
                         const tecnicoMatch = activeTecnicos.length === 0 || activeTecnicos.includes(tecnico);
                         const pedagogoMatch = activePedagogos.length === 0 || activePedagogos.includes(pedagogo);
-                        const typeMatch = activeTypes.length === 0 || activeTypes.includes(type);
 
-                        return tecnicoMatch && pedagogoMatch && typeMatch;
+                        return tecnicoMatch && pedagogoMatch;
                     });
                 }
 
@@ -1473,6 +1511,11 @@
 
                 if (e.target.closest('#calendar-filter-btn')) {
                     document.getElementById('calendar-filters-container').classList.toggle('hidden');
+                    setTimeout(() => {
+                       if (fullCalendarInstance) {
+                           fullCalendarInstance.updateSize();
+                       }
+                    }, 310); // After CSS transition
                 }
                 
                 const tecnicoBtn = e.target.closest('.tecnico-filter-btn');
