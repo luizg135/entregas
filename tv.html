@@ -7,7 +7,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
-    <!-- 1. Biblioteca FullCalendar adicionada -->
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
     <style>
         /* Estilos Globais */
@@ -85,8 +84,6 @@
             height: 100vh;
             box-sizing: border-box;
             background-color: #f8fafc; /* Cor de fundo principal */
-            max-width: 1920px; /* Linha adicionada */
-            margin: 0 auto;    /* Linha adicionada */
         }
         
         /* --- Seções de Conteúdo (Abas) --- */
@@ -274,7 +271,6 @@
             max-width: 1400px; 
             height: 85vh; /* Altura reduzida para o modal caber melhor na tela */
         }
-        
         #calendar-modal-body {
             display: flex;
             flex-direction: row;
@@ -329,6 +325,12 @@
             white-space: normal !important;
             word-wrap: break-word;
         }
+        .fc .fc-toolbar-title {
+            text-transform: capitalize;
+        }
+        #full-calendar-container .fc-header-toolbar .fc-button {
+             margin: 0 4px;
+        }
 
         /* --- KPI Gauge --- */
         .gauge-container {
@@ -347,7 +349,7 @@
             font-weight: bold;
             color: #1f2937;
         }
-        .chart-row-compact {
+                .chart-row-compact {
             height: 45vh; /* Define a altura da linha dos gráficos para 45% da altura da tela */
             min-height: 350px; /* Garante uma altura mínima para telas menores */
         }
@@ -374,7 +376,6 @@
         <main id="pedagogos" class="content-section hidden"></main>
     </div>
 
-    <!-- Modal de Detalhes do Curso -->
     <div id="course-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -392,15 +393,13 @@
         </div>
     </div>
 
-    <!-- Modal de Filtros -->
-     <div id="filter-modal" class="modal-overlay hidden">
+    <div id="filter-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
                 <h2 class="text-xl font-bold text-white">Filtrar Cursos</h2>
                 <button id="filter-close-btn" class="modal-close-btn">&times;</button>
             </div>
             <div id="filter-modal-body" class="modal-body grid grid-cols-2 gap-6">
-                <!-- Filtros preenchidos via JS -->
             </div>
              <div class="modal-footer">
                 <button id="clear-filters-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Limpar Filtros</button>
@@ -409,7 +408,6 @@
         </div>
     </div>
 
-    <!-- Modal de Calendário Completo -->
     <div id="calendar-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
@@ -428,8 +426,7 @@
                     <div id="full-calendar-container" class="w-full h-full"></div>
                 </div>
                 <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
-                     <!-- Filtros do Calendário preenchidos via JS -->
-                </div>
+                     </div>
             </div>
         </div>
     </div>
@@ -437,24 +434,25 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const API_URL = 'https://entregas-api.vercel.app/api/dados';
-            let dashboardData = null; 
-            let selectedYear = 'all';
-            let charts = {}; 
+            const API_BASE_URL = 'https://entregas-api.vercel.app/api/dados2';
+            let dashboardData = null;
+            let allCoursesForYearSelector = []; // Holds all courses just for the year selector
+            let selectedYear = new Date().getFullYear().toString();
+            let charts = {};
             let carouselInterval;
             let sortConfig = { key: 'nome', direction: 'ascending' };
             let activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
             let fullCalendarInstance = null;
             let calendarFilters = { tecnico: [], pedagogo: [], type: [] };
 
-            // --- FUNÇÃO DE AJUDA PARA DATAS ---
+            // --- FUNÇÕES DE AJUDA ---
             function parseDate(dateInput) {
                 if (!dateInput) return null;
                 if (dateInput instanceof Date && !isNaN(dateInput)) {
                     return new Date(Date.UTC(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate()));
                 }
                 if (typeof dateInput !== 'string') return null;
-                
+
                 let date;
                 const parts = dateInput.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
                 if (parts) {
@@ -474,10 +472,10 @@
                 console.warn(`Não foi possível analisar o formato da data: "${dateInput}"`);
                 return null;
             }
-            
+
             function getEventColorByPedagogo(pedagogo, type) {
                 const name = pedagogo ? String(pedagogo).toLowerCase() : 'n/d';
-                
+
                 if (name.includes('josimeri')) return '#ec4899'; // Rosa
                 if (name.includes('leandro')) return '#3b82f6'; // Azul
                 if (name.includes('enderson')) return '#f97316'; // Laranja
@@ -486,17 +484,22 @@
 
                 if (type && type.toLowerCase().includes('evento')) return '#16a34a'; // Verde
                 
-                return '#6b7280'; // Cor padrão 
+                return '#6b7280'; // Cor padrão
+            }
+            
+            function capitalizeFirstLetter(string) {
+                if (!string) return '';
+                return string.charAt(0).toUpperCase() + string.slice(1);
             }
 
             function processAndUnifyEvents(apiData) {
                 const allEvents = [];
                 if (!apiData) return allEvents;
-                const processed = apiData.dadosProcessados || {};
+            
                 const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
-
+            
                 const addEvent = (details) => {
-                     if (details.title && details.start) {
+                    if (details.title && details.start) {
                         const newEvent = {
                             title: details.title,
                             start: details.start,
@@ -505,82 +508,80 @@
                             extendedProps: details.extendedProps
                         };
                         const key = `${newEvent.title}-${toDateKey(newEvent.start)}`;
-                        allEvents.push({key, event: newEvent});
+                        allEvents.push({ key, event: newEvent });
                     }
                 };
-
-                // Combinar todas as fontes de cursos/eventos
-                const allSources = [
-                    ...(apiData.proximosLancamentos || []),
-                    ...(processed.cursos || []),
-                    ...(processed.eventos || []),
-                    ...(processed.formacoes || []),
-                    ...(apiData.eventosCalendario || []),
-                    ...(processed.outrasAtividades || [])
-                ];
-
-                allSources.forEach(item => {
-                    let eventType = item.type || item.etapaAtual || 'Evento';
-                    let pedagogo = item.pedagogo || item.responsavel;
-                    let tecnico = item.tecnico;
-
-                    if (item.pilotoInicio) {
+            
+                // Eventos dos cursos
+                (apiData.cursos || []).forEach(curso => {
+                    (curso.eventosAssociados || []).forEach(evento => {
                         addEvent({
-                            title: `Piloto: ${item.nome}`,
-                            start: parseDate(item.pilotoInicio),
-                            end: parseDate(item.pilotoFim) || parseDate(item.pilotoInicio),
-                            pedagogo: pedagogo,
-                            extendedProps: { eventType: 'piloto', courseName: item.nome, courseLevel: item.nivel, tecnico: tecnico, pedagogo: pedagogo }
+                            title: `${evento.tipo}: ${curso.nome}`,
+                            start: parseDate(evento.inicio),
+                            end: parseDate(evento.fim) || parseDate(evento.inicio),
+                            extendedProps: {
+                                eventType: evento.tipo.toLowerCase(),
+                                courseName: curso.nome,
+                                courseLevel: curso.nivel,
+                                tecnico: curso.equipe.tecnico,
+                                pedagogo: evento.pedagogo || curso.equipe.pedagogo
+                            }
                         });
-                    }
-                    if (item.formacaoInicio) {
-                         addEvent({
-                            title: `Formação: ${item.nome}`,
-                            start: parseDate(item.formacaoInicio),
-                            end: parseDate(item.formacaoFim) || parseDate(item.formacaoInicio),
-                            pedagogo: pedagogo,
-                            extendedProps: { eventType: 'formacao', courseName: item.nome, courseLevel: item.nivel, tecnico: tecnico, pedagogo: pedagogo }
-                        });
-                    }
-                    if (item.date) { // de eventosCalendario
-                         addEvent({
-                            title: item.title,
-                            start: parseDate(item.date),
-                            end: parseDate(item.date),
-                            pedagogo: null,
-                            extendedProps: { eventType: item.type || 'evento', tecnico: tecnico, pedagogo: pedagogo }
-                        });
-                    }
-                     if (item.tema) { // de outrasAtividades e eventos
-                         addEvent({
-                            title: `${item.tipo || 'Atividade'}: ${item.tema}`,
+                    });
+                });
+            
+                // Eventos do calendário
+                (apiData.calendarioEventos || []).forEach(item => {
+                    addEvent({
+                        title: item.titulo,
+                        start: parseDate(item.dataInicio),
+                        end: parseDate(item.dataFim) || parseDate(item.dataInicio),
+                        extendedProps: {
+                            eventType: item.tipo.toLowerCase(),
+                            courseName: item.propriedades.nomeCurso,
+                            courseLevel: item.propriedades.nivelCurso,
+                            tecnico: item.propriedades.tecnico,
+                            pedagogo: item.propriedades.pedagogo
+                        }
+                    });
+                });
+            
+                // Atividades extras
+                if (apiData.atividadesExtras && apiData.atividadesExtras.pedagogos) {
+                    apiData.atividadesExtras.pedagogos.forEach(item => {
+                        addEvent({
+                            title: `${item.tipo}: ${item.tema}`,
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
-                            pedagogo: item.responsavel,
-                            extendedProps: { eventType: item.tipo || 'evento', tecnico: tecnico, pedagogo: item.responsavel }
+                            extendedProps: {
+                                eventType: item.tipo.toLowerCase(),
+                                tecnico: null,
+                                pedagogo: item.responsavel
+                            }
                         });
-                    }
-                });
-
-
+                    });
+                }
+            
                 const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
-                
+            
                 // Aplicar cores
                 uniqueEvents.forEach(event => {
                     event.color = getEventColorByPedagogo(event.extendedProps.pedagogo, event.extendedProps.eventType);
                     if (event.end) {
-                       event.end.setUTCDate(event.end.getUTCDate() + 1);
+                        const endDate = new Date(event.end);
+                        endDate.setUTCDate(endDate.getUTCDate() + 1);
+                        event.end = endDate;
                     }
                 });
-
+            
                 return uniqueEvents;
             }
 
 
             // --- FUNÇÕES DE RENDERIZAÇÃO ---
             
-            function generateHeaderHTML(currentYear, allCourses) {
-                const years = [...new Set(allCourses.map(c => c.anoDisponivel).filter(y => y))].sort((a, b) => b - a);
+            function generateHeaderHTML(currentYear) {
+                const years = [...new Set(allCoursesForYearSelector.map(c => c.anoDisponivel).filter(y => y))].sort((a, b) => b - a);
                 let yearOptions = '<option value="all">Geral</option>';
                 years.forEach(year => {
                     yearOptions += `<option value="${year}" ${year == currentYear ? 'selected' : ''}>${year}</option>`;
@@ -701,7 +702,7 @@
             function renderInicio(indicadores, analiseDoAno, proximosLancamentos) {
                 const container = document.getElementById('inicio');
                 container.innerHTML = `
-                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                    ${generateHeaderHTML(selectedYear)}
                     <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
                         <div class="flex-shrink-0">
                             ${generateTopCardsHTML(indicadores)}
@@ -768,14 +769,8 @@
                 let chartData = [];
 
                 if (selectedYear === 'all') {
-                    const years = Object.keys(dashboardData.analises).filter(y => y !== 'Total').sort();
-                    years.forEach(year => {
-                        const trimestres = dashboardData.analises[year].planejamentoTrimestral || {};
-                        for (let i = 1; i <= 4; i++) {
-                            labels.push(`${i}º Tri/${year.slice(-2)}`);
-                            chartData.push(trimestres[`T${i}`] || 0);
-                        }
-                    });
+                    labels = ["1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre"];
+                    chartData = labels.map((_, i) => data[`T${i+1}`] || 0);
                 } else {
                     labels = ["1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre"];
                     chartData = labels.map((_, i) => data[`T${i+1}`] || 0);
@@ -807,9 +802,16 @@
                 if (charts.nivel) charts.nivel.destroy();
                 const ctx = document.getElementById('nivelChart')?.getContext('2d');
                 if (!ctx) return;
-                
-                const labels = Object.keys(data);
-                const chartData = Object.values(data);
+
+                const filteredData = Object.keys(data)
+                    .filter(key => key.toLowerCase() !== 'não definido')
+                    .reduce((obj, key) => {
+                        obj[key] = data[key];
+                        return obj;
+                    }, {});
+
+                const labels = Object.keys(filteredData);
+                const chartData = Object.values(filteredData);
                 const backgroundColors = labels.map((_, i) => `rgba(35, 89, 55, ${1 - i * 0.15})`);
 
                 charts.nivel = new Chart(ctx, {
@@ -926,15 +928,35 @@
             function renderRelatorios(indicadores, cursos) {
                 const container = document.getElementById('relatorio');
 
-                const coursesWithKpi = cursos.filter(c => typeof c.indicadorReal === 'number' && !isNaN(c.indicadorReal));
+                const today = new Date();
+                today.setUTCHours(0, 0, 0, 0);
+
+                const kpiValues = cursos.map(course => {
+                    const dataDisp = parseDate(course.dataDisponivel);
+                    if (!dataDisp) {
+                        return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
+                    }
+
+                    const monthDiff = (dataDisp.getFullYear() - today.getFullYear()) * 12 + (dataDisp.getMonth() - today.getMonth());
+
+                    if (monthDiff >= 6) {
+                        return 0.8;
+                    } else if (monthDiff >= 4 && monthDiff < 6) {
+                        const currentIndicator = (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : 0;
+                        return Math.max(currentIndicator, 0.4);
+                    } else { // Less than 4 months
+                        return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
+                    }
+                }).filter(val => val !== null);
+
                 let kpiValue = 0;
-                if (coursesWithKpi.length > 0) {
-                    const kpiSum = coursesWithKpi.reduce((sum, course) => sum + course.indicadorReal, 0);
-                    kpiValue = Math.round((kpiSum / coursesWithKpi.length) * 100);
+                if (kpiValues.length > 0) {
+                    const kpiSum = kpiValues.reduce((sum, val) => sum + val, 0);
+                    kpiValue = Math.round((kpiSum / kpiValues.length) * 100);
                 }
 
                  container.innerHTML = `
-                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                    ${generateHeaderHTML(selectedYear)}
                      <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
                         <div class="flex-shrink-0 grid grid-cols-6 gap-6">
                             <div class="col-span-5 flex flex-col gap-6">
@@ -1022,20 +1044,20 @@
                 }).join('');
 
                 return `
-                         <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50 sticky top-0 z-10">
-                                <tr>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
-                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
-                        </table>
+                           <table class="min-w-full divide-y divide-gray-200">
+                               <thead class="bg-gray-50 sticky top-0 z-10">
+                                   <tr>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
+                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
+                                   </tr>
+                               </thead>
+                               <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
+                           </table>
                 `;
             }
 
@@ -1071,7 +1093,7 @@
                     let checkboxes = items.map(item => `
                         <label class="flex items-center text-sm p-1 rounded hover:bg-gray-200">
                             <input type="checkbox" class="calendar-filter-checkbox h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" data-filter-key="${filterKey}" value="${item}">
-                            <span class="ml-2 text-gray-700">${item}</span>
+                            <span class="ml-2 text-gray-700">${capitalizeFirstLetter(item)}</span>
                         </label>
                     `).join('');
                     return `<div class="mb-4">
@@ -1089,7 +1111,6 @@
                 `;
             }
 
-            // --- NOVA FUNÇÃO PARA INICIALIZAR O FULLCALENDAR ---
             function initializeFullCalendar() {
                 const calendarEl = document.getElementById('full-calendar-container');
                 if (!calendarEl || !dashboardData.allEvents) return;
@@ -1153,24 +1174,23 @@
 
             function renderPedagogos() {
                 document.getElementById('pedagogos').innerHTML = `
-                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                    ${generateHeaderHTML(selectedYear)}
                      <div class="flex-grow p-6 main-content-area">
-                        <!-- Área de conteúdo para design da aba Pedagogos -->
-                    </div>
+                         </div>
                 `;
             }
             
             function updateDashboardView() {
                 if (!dashboardData) return;
-
-                const yearKey = selectedYear === 'all' ? 'Total' : selectedYear;
-                const analiseDoAno = dashboardData.analises[yearKey] || { totalEntregas: {}, metaEntregas: 0, cursosPorEtapa: {}, planejamentoTrimestral: {}, cursosPorNivel: {} };
-                const entregas = analiseDoAno.totalEntregas || {};
-                
+            
+                const visaoGeral = dashboardData.visaoGeral || {};
+                const indicadores = visaoGeral.indicadores || {};
+                const graficos = visaoGeral.graficos || {};
+            
                 let filteredCoursesByYear = (selectedYear === 'all')
                     ? dashboardData.fullCronograma
                     : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
-                
+            
                 let filteredCourses = filteredCoursesByYear.filter(course => {
                     return (activeFilters.tecnico.length === 0 || activeFilters.tecnico.includes(course.tecnico)) &&
                            (activeFilters.pedagogo.length === 0 || activeFilters.pedagogo.includes(course.pedagogo)) &&
@@ -1178,11 +1198,11 @@
                            (activeFilters.nivel.length === 0 || activeFilters.nivel.includes(course.nivel)) &&
                            (activeFilters.tipo.length === 0 || activeFilters.tipo.includes(course.tipo));
                 });
-                
+            
                 filteredCourses.sort((a, b) => {
                     const key = sortConfig.key;
                     const direction = sortConfig.direction === 'ascending' ? 1 : -1;
-                    
+            
                     if (key === 'dataDisponivel') {
                         const dateA = parseDate(a[key]);
                         const dateB = parseDate(b[key]);
@@ -1191,7 +1211,7 @@
                         if (!dateB) return -1 * direction;
                         return (dateA - dateB) * direction;
                     }
-
+            
                     const valA = a[key] || '';
                     const valB = b[key] || '';
                     if (typeof valA === 'string') {
@@ -1199,16 +1219,21 @@
                     }
                     return (valA - valB) * direction;
                 });
-
-
+            
                 const indicadoresInicio = {
-                    meta_entregas: analiseDoAno.metaEntregas,
-                    totalNovos: entregas.totalNovos,
-                    novosEntregues: entregas.novosEntregues,
-                    totalAtualizacoes: entregas.totalAtualizacoes,
-                    atualizacoesEntregues: entregas.atualizacoesEntregues,
+                    meta_entregas: indicadores.metaEntregas,
+                    totalNovos: indicadores.novos ? indicadores.novos.total : 0,
+                    novosEntregues: indicadores.novos ? indicadores.novos.entregues : 0,
+                    totalAtualizacoes: indicadores.atualizacoes ? indicadores.atualizacoes.total : 0,
+                    atualizacoesEntregues: indicadores.atualizacoes ? indicadores.atualizacoes.entregues : 0,
                 };
-                
+            
+                const analiseDoAno = {
+                    cursosPorEtapa: graficos.cursosPorEtapa,
+                    planejamentoTrimestral: graficos.entregasTrimestrais,
+                    cursosPorNivel: graficos.cursosPorNivel
+                };
+            
                 const entreguesCount = filteredCourses.filter(c => c.etapaAtual && c.etapaAtual.toLowerCase() === 'entregue').length;
                 const indicadoresRelatorio = {
                     totalCursos: filteredCourses.length,
@@ -1217,23 +1242,23 @@
                     entregues: entreguesCount,
                     restante: filteredCourses.length - entreguesCount
                 };
-                
-                const proximosLancamentos = dashboardData.proximosLancamentos || [];
-
+            
+                const proximosLancamentos = visaoGeral.proximosLancamentos || [];
+            
                 renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
                 renderRelatorios(indicadoresRelatorio, filteredCourses);
                 renderPedagogos();
-
+            
                 const activeLink = document.querySelector('.menu-link.active');
                 const activeTabId = activeLink ? activeLink.getAttribute('href').substring(1) : 'inicio';
-                
+            
                 document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
                 document.getElementById(activeTabId)?.classList.remove('hidden');
-                
+            
                 const filterBtn = document.getElementById('filter-btn');
                 if (filterBtn) {
                      const isFilterActive = Object.values(activeFilters).some(arr => arr.length > 0);
-                     filterBtn.classList.toggle('active', isFilterActive);
+                      filterBtn.classList.toggle('active', isFilterActive);
                 }
             }
 
@@ -1272,53 +1297,25 @@
                 
                 document.getElementById('content-detalhes').innerHTML = `
                      <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                        <div class="col-span-2 p-3 bg-white border rounded-md">
-                            <p class="text-gray-500 font-semibold">Etapa Atual</p>
-                            <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
-                        </div>
-                        <div><p class="text-gray-500 font-semibold">Nível do Curso</p><p class="text-gray-900">${course.nivel || 'N/D'}</p></div>
-                        <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
-                        <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
-                        <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
+                         <div class="col-span-2 p-3 bg-white border rounded-md">
+                             <p class="text-gray-500 font-semibold">Etapa Atual</p>
+                             <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
+                         </div>
+                         <div><p class="text-gray-500 font-semibold">Nível do Curso</p><p class="text-gray-900">${course.nivel || 'N/D'}</p></div>
+                         <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
+                         <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
+                         <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
                     </div>
                 `;
                 
-                const allEvents = new Map();
-                const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
-                
-                const mainCourseEvents = dashboardData.fullCronograma.filter(c => c.nome === courseName && c.nivel === courseLevel);
-                mainCourseEvents.forEach(c => {
-                    const pilotoInicio = parseDate(c.pilotoInicio);
-                    if (pilotoInicio) {
-                        const pilotoFim = parseDate(c.pilotoFim) || pilotoInicio;
-                        const key = `piloto-${toDateKey(pilotoInicio)}-${toDateKey(pilotoFim)}`;
-                        if (!allEvents.has(key)) {
-                            allEvents.set(key, { type: 'Piloto', inicio: pilotoInicio, fim: pilotoFim });
-                        }
-                    }
-                    const formacaoInicio = parseDate(c.formacaoInicio);
-                    if (formacaoInicio) {
-                         const formacaoFim = parseDate(c.formacaoFim) || formacaoInicio;
-                         const key = `formacao-${toDateKey(formacaoInicio)}-${toDateKey(formacaoFim)}`;
-                         if (!allEvents.has(key)) {
-                            allEvents.set(key, { type: 'Formação', inicio: formacaoInicio, fim: formacaoFim });
-                         }
-                    }
-                });
-                
-                const formationEvents = dashboardData.formacoes.filter(f => f.curso.includes(courseName));
-                 formationEvents.forEach(f => {
-                    const inicio = parseDate(f.inicio);
-                    if (inicio) {
-                        const fim = parseDate(f.fim) || inicio;
-                        const key = `formacao-${toDateKey(inicio)}-${toDateKey(fim)}`;
-                        if (!allEvents.has(key)) {
-                            allEvents.set(key, { type: 'Formação', inicio: inicio, fim: fim });
-                        }
-                    }
-                });
+                const allEvents = (course.eventosAssociados || []).map(e => ({
+                    type: e.tipo,
+                    inicio: parseDate(e.inicio),
+                    fim: parseDate(e.fim) || parseDate(e.inicio),
+                    pedagogo: e.pedagogo
+                })).filter(e => e.inicio);
 
-                const sortedEvents = Array.from(allEvents.values()).sort((a,b) => a.inicio - b.inicio);
+                const sortedEvents = allEvents.sort((a,b) => a.inicio - b.inicio);
 
                 const agendaContent = document.getElementById('content-agenda');
                 if (sortedEvents.length > 0) {
@@ -1352,7 +1349,8 @@
                                 </div>
                                 <div>
                                     <p class="font-bold text-gray-700">${eventTypeLabel}</p>
-                                    <p class="${dateClass} text-sm">${event.inicio.toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${event.fim.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                                    <p class="text-xs text-gray-500">${event.pedagogo || 'N/D'}</p>
+                                    <p class="${dateClass} text-sm mt-1">${event.inicio.toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${event.fim.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
                                 </div>
                             </div>
                         `;
@@ -1448,7 +1446,6 @@
                 }
                  if (e.target.closest('#header-calendar-btn')) {
                     document.getElementById('calendar-modal').classList.remove('hidden');
-                    // Timeout para garantir que o modal esteja visível antes de renderizar
                     setTimeout(() => {
                         generateCalendarFiltersHTML();
                         initializeFullCalendar();
@@ -1501,14 +1498,14 @@
                     } else {
                         calendarFilters[key] = calendarFilters[key].filter(item => item !== value);
                     }
-                    initializeFullCalendar(); // Re-renderiza o calendário com os filtros aplicados
+                    initializeFullCalendar();
                 }
             });
 
             document.body.addEventListener('change', function(e) {
                 if (e.target.classList.contains('year-selector')) {
                     selectedYear = e.target.value;
-                    updateDashboardView();
+                    fetchAndRenderData(selectedYear);
                 }
             });
             
@@ -1541,13 +1538,13 @@
 
             function applyFilters() {
                  const newFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
-                 document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked').forEach(checkbox => {
-                     const key = checkbox.dataset.filterKey;
-                     newFilters[key].push(checkbox.value);
-                 });
-                 activeFilters = newFilters;
-                 updateDashboardView();
-                 document.getElementById('filter-modal').classList.add('hidden');
+                  document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked').forEach(checkbox => {
+                       const key = checkbox.dataset.filterKey;
+                       newFilters[key].push(checkbox.value);
+                  });
+                  activeFilters = newFilters;
+                  updateDashboardView();
+                  document.getElementById('filter-modal').classList.add('hidden');
             }
 
             function clearFilters() {
@@ -1557,39 +1554,47 @@
             }
 
 
-            async function initialize() {
+            async function fetchAndRenderData(year) {
                 try {
-                    const response = await fetch(API_URL);
+                    const fetchUrl = (year === 'all' || !year) 
+                        ? API_BASE_URL 
+                        : `${API_BASE_URL}?ano=${year}`;
+
+                    const response = await fetch(fetchUrl);
                     if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                     const apiResponse = await response.json();
                     
-                    if (!apiResponse || typeof apiResponse !== 'object' || !apiResponse.dadosProcessados || !Array.isArray(apiResponse.dadosProcessados.cursos)) {
+                    if (!apiResponse || typeof apiResponse !== 'object' || !apiResponse.cursos) {
                          throw new Error("A estrutura dos dados recebidos da API é inválida ou a resposta está vazia.");
                     }
                     
-                    const transformedCronograma = apiResponse.dadosProcessados.cursos.map(c => ({
+                    const transformedCronograma = apiResponse.cursos.map(c => ({
                         curso: c.nome,
-                        responsavel: c.pedagogo || c.tecnico || 'Não definido',
-                        data_inicio: c.pilotoInicio || c.formacaoInicio,
-                        data_fim: c.dataLancamento || c.dataDisponivel,
-                        progresso: c.percentual || 0,
+                        responsavel: c.equipe.pedagogo || c.equipe.tecnico || 'Não definido',
+                        data_inicio: c.eventosAssociados.find(e => e.tipo === 'Piloto')?.inicio,
+                        data_fim: c.dataDisponivel,
+                        progresso: c.indicadorReal * 100 || 0,
                         status: c.etapaAtual,
                         nivel: c.nivel,
                         anoDisponivel: c.anoDisponivel
                     }));
+            
+                    const fullCronograma = apiResponse.cursos.map(c => ({
+                        ...c,
+                        tecnico: c.equipe.tecnico,
+                        pedagogo: c.equipe.pedagogo
+                    }));
                     
                     const allEvents = processAndUnifyEvents(apiResponse);
-
+            
                     dashboardData = {
-                        analises: apiResponse.analises,
+                        visaoGeral: apiResponse.visaoGeral,
                         cronograma: transformedCronograma,
-                        proximosLancamentos: apiResponse.proximosLancamentos || [],
-                        fullCronograma: apiResponse.dadosProcessados.cursos || [],
-                        formacoes: apiResponse.dadosProcessados.formacoes || [],
+                        fullCronograma: fullCronograma,
                         allEvents: allEvents
                     };
                     
-                    selectedYear = new Date().getFullYear().toString(); 
+                    selectedYear = year;
                     updateDashboardView();
                 } catch (error) {
                     console.error("Não foi possível buscar os dados:", error);
@@ -1597,8 +1602,27 @@
                     errorContainer.innerHTML = `<div class="m-6 p-4 text-red-700 bg-red-100 rounded-lg"><strong>Erro ao carregar os dados.</strong><br>${error.message}</div>`;
                 }
             }
+            
+            async function initializeDashboard() {
+                 try {
+                    // Fetch 'all' data silently to populate the years list.
+                    const response = await fetch(API_BASE_URL);
+                    if (response.ok) {
+                        const apiResponse = await response.json();
+                        allCoursesForYearSelector = apiResponse.cursos.map(c => ({
+                            anoDisponivel: c.anoDisponivel
+                        }));
+                    }
+                    // Then, proceed with the normal fetch for the selected year.
+                    await fetchAndRenderData(selectedYear);
+                 } catch (error) {
+                     console.error("Failed to initialize dashboard:", error);
+                     const errorContainer = document.getElementById('inicio') || document.body;
+                    errorContainer.innerHTML = `<div class="m-6 p-4 text-red-700 bg-red-100 rounded-lg"><strong>Erro ao inicializar o dashboard.</strong><br>${error.message}</div>`;
+                 }
+            }
 
-            initialize();
+            initializeDashboard();
         });
     </script>
 </body>
