@@ -1,0 +1,1599 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard de Entregas de Cursos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <!-- 1. Biblioteca FullCalendar adicionada -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <style>
+        /* Estilos Globais */
+        html, body {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+
+        /* --- Menu Lateral --- */
+        #menu-trigger-zone {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 20px;
+            height: 100%;
+            z-index: 49;
+        }
+
+        #side-menu {
+            position: fixed;
+            top: 50%;
+            left: 0;
+            transform: translateX(-100%) translateY(-50%); 
+            transition: transform 0.3s ease-in-out;
+            background-color: #235937;
+            border-radius: 0 12px 12px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            padding: 16px 12px;
+            z-index: 50;
+        }
+
+        #menu-trigger-zone:hover + #side-menu,
+        #side-menu:hover {
+            transform: translateX(0) translateY(-50%);
+        }
+
+        #side-menu ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        #side-menu a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #e2e8f0;
+            text-decoration: none;
+            padding: 12px;
+            border-radius: 8px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+
+        #side-menu a:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: #ffffff;
+        }
+
+        #side-menu a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+        }
+
+        /* --- Contêiner Principal do Dashboard --- */
+        #dashboard-container {
+            width: 100vw;
+            height: 100vh;
+            box-sizing: border-box;
+            background-color: #f8fafc; /* Cor de fundo principal */
+            max-width: 1920px; /* Linha adicionada */
+            margin: 0 auto;    /* Linha adicionada */
+        }
+        
+        /* --- Seções de Conteúdo (Abas) --- */
+        .content-section {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .hidden {
+            display: none;
+        }
+        
+        /* Remove a rolagem e a seta do seletor */
+        .search-suggestions::-webkit-scrollbar,
+        .table-container::-webkit-scrollbar,
+        .main-content-area::-webkit-scrollbar,
+        .modal-body::-webkit-scrollbar,
+        .tecnico-filter-container::-webkit-scrollbar {
+            display: none;
+        }
+        .search-suggestions,
+        .table-container,
+        .main-content-area,
+        .modal-body,
+        .tecnico-filter-container {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .year-selector {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            padding-right: 1rem; /* Mantém o padding para não cortar o texto */
+        }
+        
+        /* Estilos Carrossel */
+        .carousel-wrapper {
+            position: relative;
+        }
+        .carousel-container {
+            overflow: hidden;
+            width: 100%;
+        }
+        .carousel-track {
+            display: flex;
+            transition: transform 0.5s ease-in-out;
+        }
+        .carousel-item {
+            min-width: calc(100% / 5);
+            box-sizing: border-box;
+            padding: 0 0.75rem; /* gap-6 -> p-3 */
+            cursor: pointer;
+        }
+        .carousel-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: white;
+            border-radius: 9999px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            width: 2rem;
+            height: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+        }
+        .carousel-wrapper:hover .carousel-btn {
+            opacity: 1;
+        }
+        .carousel-btn:hover {
+            background-color: #f3f4f6;
+        }
+        .carousel-btn.prev {
+            left: -1rem;
+        }
+        .carousel-btn.next {
+            right: -1rem;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100;
+        }
+        .modal-content {
+            background-color: #f9fafb;
+            border-radius: 0.5rem;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+            width: 50rem;
+            max-width: 90%;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .modal-header {
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #235937;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            transition: background-color 0.3s;
+        }
+         #modal-course-name {
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e5e7eb;
+            background-color: white;
+            display: flex;
+            justify-content: flex-end;
+            gap: 0.5rem;
+        }
+        .modal-close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: white;
+            opacity: 0.7;
+            transition: opacity 0.2s ease;
+        }
+        .modal-close-btn:hover {
+            opacity: 1;
+        }
+        .modal-tabs {
+            background-color: white;
+            padding: 0 1.5rem;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .modal-tabs button {
+            padding: 0.75rem 0.25rem;
+            margin-right: 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            color: #6b7280;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+             transition: all 0.2s ease-in-out;
+        }
+         .modal-tabs button.active {
+            color: #235937;
+            border-bottom-color: #235937;
+        }
+        
+        /* Tabela de Relatórios */
+        .sortable-header {
+            cursor: pointer;
+        }
+        .sortable-header:hover {
+            background-color: #f3f4f6;
+        }
+        .filter-btn.active {
+            color: #235937;
+            background-color: #e8f5e9;
+        }
+
+        /* --- Estilos para o FullCalendar --- */
+        #calendar-modal .modal-content { 
+            width: 95vw; 
+            max-width: 1400px; 
+            height: 90vh; 
+        }
+        #calendar-modal-body {
+            display: flex;
+            flex-direction: row;
+            padding: 0;
+            flex-grow: 1;
+            min-height: 0;
+        }
+        #calendar-filters-container {
+            width: 280px;
+            flex-shrink: 0;
+            transition: width 0.3s ease-in-out, padding 0.3s ease-in-out;
+            background-color: #f3f4f6;
+            border-left: 1px solid #e5e7eb;
+        }
+        #calendar-filters-container.hidden {
+            width: 0;
+            padding: 0;
+            overflow: hidden;
+            border-left: none;
+        }
+
+        .fc .fc-button-primary {
+            background-color: #235937 !important;
+            border-color: #235937 !important;
+        }
+        .fc .fc-button-primary:hover {
+            background-color: #1a4329 !important;
+            border-color: #1a4329 !important;
+        }
+        .fc .fc-button-primary:not(:disabled).fc-button-active,
+        .fc .fc-button-primary:not(:disabled):active {
+            background-color: #1a4329 !important;
+            border-color: #1a4329 !important;
+        }
+        .fc .fc-day-today {
+            background: rgba(35, 89, 55, 0.1) !important;
+        }
+        .fc .fc-daygrid-event {
+            margin-bottom: 4px !important; 
+            padding-top: 2px;
+            padding-bottom: 2px;
+        }
+        .fc-daygrid-event-dot {
+            display: none;
+        }
+        .fc .fc-event-title-container {
+            flex-grow: 1;
+            flex-shrink: 1;
+            min-width: 0;
+        }
+        .fc .fc-event-title {
+            white-space: normal !important;
+            word-wrap: break-word;
+        }
+
+        /* --- KPI Gauge --- */
+        .gauge-container {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+         .gauge-text {
+            position: absolute;
+            bottom: 25%;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #1f2937;
+        }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <div id="menu-trigger-zone"></div>
+
+    <nav id="side-menu">
+        <ul>
+            <li><a href="#inicio" class="menu-link active" title="Início"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" /></svg></a></li>
+            <li><a href="#relatorio" class="menu-link" title="Relatório"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg></a></li>
+            <li><a href="#pedagogos" class="menu-link" title="Pedagogos"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" /></svg></a></li>
+        </ul>
+    </nav>
+
+    <div id="dashboard-container">
+        <main id="inicio" class="content-section"></main>
+        <main id="relatorio" class="content-section hidden"></main>
+        <main id="pedagogos" class="content-section hidden"></main>
+    </div>
+
+    <!-- Modal de Detalhes do Curso -->
+    <div id="course-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-course-name" class="text-xl font-bold">Nome do Curso</h2>
+                <button id="modal-close-btn" class="modal-close-btn">&times;</button>
+            </div>
+             <div class="modal-tabs">
+                <button id="tab-detalhes" class="active">Detalhes</button>
+                <button id="tab-agenda">Agenda</button>
+            </div>
+            <div class="modal-body">
+                <div id="content-detalhes"></div>
+                <div id="content-agenda" class="hidden"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Filtros -->
+     <div id="filter-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="text-xl font-bold text-white">Filtrar Cursos</h2>
+                <button id="filter-close-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div id="filter-modal-body" class="modal-body grid grid-cols-2 gap-6">
+                <!-- Filtros preenchidos via JS -->
+            </div>
+             <div class="modal-footer">
+                <button id="clear-filters-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Limpar Filtros</button>
+                <button id="apply-filters-btn" class="px-4 py-2 text-sm font-medium text-white bg-[#235937] border border-transparent rounded-md hover:bg-green-800">Aplicar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Calendário Completo -->
+    <div id="calendar-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                 <h2 id="calendar-modal-title" class="text-xl font-bold text-white">Calendário de Eventos</h2>
+                 <div class="flex items-center gap-2">
+                    <button id="calendar-filter-btn" class="p-2 rounded-full hover:bg-white/20" title="Filtrar eventos">
+                        <svg class="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    <button id="calendar-close-btn" class="modal-close-btn">&times;</button>
+                 </div>
+            </div>
+            <div id="calendar-modal-body">
+                <div id="full-calendar-wrapper" class="p-4 flex-grow">
+                    <div id="full-calendar-container" class="w-full h-full"></div>
+                </div>
+                <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
+                     <!-- Filtros do Calendário preenchidos via JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const API_URL = 'https://entregas-api.vercel.app/api/dados';
+            let dashboardData = null; 
+            let selectedYear = 'all';
+            let charts = {}; 
+            let carouselInterval;
+            let sortConfig = { key: 'nome', direction: 'ascending' };
+            let activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+            let fullCalendarInstance = null;
+            let calendarFilters = { tecnico: [], pedagogo: [], type: [] };
+
+            // --- FUNÇÃO DE AJUDA PARA DATAS ---
+            function parseDate(dateInput) {
+                if (!dateInput) return null;
+                if (dateInput instanceof Date && !isNaN(dateInput)) {
+                    return new Date(Date.UTC(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate()));
+                }
+                if (typeof dateInput !== 'string') return null;
+                
+                let date;
+                const parts = dateInput.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+                if (parts) {
+                    const day = parseInt(parts[1], 10);
+                    const month = parseInt(parts[2], 10);
+                    const year = parseInt(parts[3], 10);
+                    if (day > 0 && day <= 31 && month > 0 && month <= 12 && year > 1900) {
+                        date = new Date(Date.UTC(year, month - 1, day));
+                        if (!isNaN(date.getTime())) return date;
+                    }
+                }
+                date = new Date(dateInput);
+                if (!isNaN(date.getTime())) {
+                    const userTimezoneOffset = date.getTimezoneOffset() * 60000;
+                    return new Date(date.getTime() + userTimezoneOffset);
+                }
+                console.warn(`Não foi possível analisar o formato da data: "${dateInput}"`);
+                return null;
+            }
+            
+            function getEventColorByPedagogo(pedagogo, type) {
+                const name = pedagogo ? String(pedagogo).toLowerCase() : 'n/d';
+                
+                if (name.includes('josimeri')) return '#ec4899'; // Rosa
+                if (name.includes('leandro')) return '#3b82f6'; // Azul
+                if (name.includes('enderson')) return '#f97316'; // Laranja
+                if (name.includes('regiane') || name.includes('márcia')) return '#8b5cf6'; // Roxo
+                if (name === 'não definido' || name === 'não se aplica' || name === 'n/d') return '#6b7280'; // Cinza
+
+                if (type && type.toLowerCase().includes('evento')) return '#16a34a'; // Verde
+                
+                return '#6b7280'; // Cor padrão 
+            }
+
+            function processAndUnifyEvents(apiData) {
+                const allEvents = [];
+                if (!apiData) return allEvents;
+                const processed = apiData.dadosProcessados || {};
+                const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
+
+                const addEvent = (details) => {
+                     if (details.title && details.start) {
+                        const newEvent = {
+                            title: details.title,
+                            start: details.start,
+                            end: details.end,
+                            allDay: true,
+                            extendedProps: details.extendedProps
+                        };
+                        const key = `${newEvent.title}-${toDateKey(newEvent.start)}`;
+                        allEvents.push({key, event: newEvent});
+                    }
+                };
+
+                // Combinar todas as fontes de cursos/eventos
+                const allSources = [
+                    ...(apiData.proximosLancamentos || []),
+                    ...(processed.cursos || []),
+                    ...(processed.eventos || []),
+                    ...(processed.formacoes || []),
+                    ...(apiData.eventosCalendario || []),
+                    ...(processed.outrasAtividades || [])
+                ];
+
+                allSources.forEach(item => {
+                    let eventType = item.type || item.etapaAtual || 'Evento';
+                    let pedagogo = item.pedagogo || item.responsavel;
+                    let tecnico = item.tecnico;
+
+                    if (item.pilotoInicio) {
+                        addEvent({
+                            title: `Piloto: ${item.nome}`,
+                            start: parseDate(item.pilotoInicio),
+                            end: parseDate(item.pilotoFim) || parseDate(item.pilotoInicio),
+                            pedagogo: pedagogo,
+                            extendedProps: { eventType: 'piloto', courseName: item.nome, courseLevel: item.nivel, tecnico: tecnico, pedagogo: pedagogo }
+                        });
+                    }
+                    if (item.formacaoInicio) {
+                         addEvent({
+                            title: `Formação: ${item.nome}`,
+                            start: parseDate(item.formacaoInicio),
+                            end: parseDate(item.formacaoFim) || parseDate(item.formacaoInicio),
+                            pedagogo: pedagogo,
+                            extendedProps: { eventType: 'formacao', courseName: item.nome, courseLevel: item.nivel, tecnico: tecnico, pedagogo: pedagogo }
+                        });
+                    }
+                    if (item.date) { // de eventosCalendario
+                         addEvent({
+                            title: item.title,
+                            start: parseDate(item.date),
+                            end: parseDate(item.date),
+                            pedagogo: null,
+                            extendedProps: { eventType: item.type || 'evento', tecnico: tecnico, pedagogo: pedagogo }
+                        });
+                    }
+                     if (item.tema) { // de outrasAtividades e eventos
+                         addEvent({
+                            title: `${item.tipo || 'Atividade'}: ${item.tema}`,
+                            start: parseDate(item.inicio),
+                            end: parseDate(item.fim) || parseDate(item.inicio),
+                            pedagogo: item.responsavel,
+                            extendedProps: { eventType: item.tipo || 'evento', tecnico: tecnico, pedagogo: item.responsavel }
+                        });
+                    }
+                });
+
+
+                const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
+                
+                // Aplicar cores
+                uniqueEvents.forEach(event => {
+                    event.color = getEventColorByPedagogo(event.extendedProps.pedagogo, event.extendedProps.eventType);
+                    if (event.end) {
+                       event.end.setUTCDate(event.end.getUTCDate() + 1);
+                    }
+                });
+
+                return uniqueEvents;
+            }
+
+
+            // --- FUNÇÕES DE RENDERIZAÇÃO ---
+            
+            function generateHeaderHTML(currentYear, allCourses) {
+                const years = [...new Set(allCourses.map(c => c.anoDisponivel).filter(y => y))].sort((a, b) => b - a);
+                let yearOptions = '<option value="all">Geral</option>';
+                years.forEach(year => {
+                    yearOptions += `<option value="${year}" ${year == currentYear ? 'selected' : ''}>${year}</option>`;
+                });
+
+                return `
+                    <header class="flex-shrink-0 flex justify-between items-center p-4 border-b bg-white">
+                        <div><img src="https://i.imgur.com/ruDtZT7.png" alt="Logo SENAR" class="h-10"></div>
+                        <div class="text-lg font-bold text-gray-700">ACOMPANHAMENTO DE ENTREGAS</div>
+                        <div class="flex items-center gap-4">
+                            <div>
+                                <select class="year-selector border rounded-full text-sm px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-800/50 bg-gray-50">
+                                    ${yearOptions}
+                                </select>
+                            </div>
+                             <div class="relative">
+                                <input type="text" class="search-bar w-72 pl-10 pr-4 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-800/50" placeholder="Buscar curso...">
+                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
+                                <div class="search-suggestions hidden absolute mt-1 w-full bg-white rounded-lg shadow-xl z-10 border max-h-60 overflow-y-auto"></div>
+                            </div>
+                            <button id="header-calendar-btn" class="p-2 rounded-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400/50 bg-green-700 text-white" title="Abrir Calendário">
+                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            </button>
+                            <div class="relative">
+                                <button class="menu-button p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50"><svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
+                                <div class="menu-dropdown hidden absolute right-0 mt-2 w-60 bg-white rounded-lg shadow-xl z-10 border">
+                                    <a href="https://www.sistemafaep.org.br/cursos-busca/" target="_blank" rel="noopener noreferrer" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-t-lg">Catálogo</a>
+                                    <a href="https://app.powerbi.com/view?r=eyJrIjoiMzIwZDk3OTctY2QxNC00ZGY5LThmNDItNWMzYjBiMzU1OGY5IiwidCI6IjNmY2UyOTIxLTI0ZTgtNDhhOC1hOTI2LWJiMzhlZjkzOTY0MiJ9" target="_blank" rel="noopener noreferrer" class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 rounded-b-lg">Mapa para Ofícios</a>
+                                </div>
+                            </div>
+                        </div>
+                    </header>
+                `;
+            }
+
+            function generateTopCardsHTML(indicadores) {
+                const novosPercent = (indicadores.totalNovos > 0) ? Math.round((indicadores.novosEntregues / indicadores.totalNovos) * 100) : 0;
+                const atualizacoesPercent = (indicadores.totalAtualizacoes > 0) ? Math.round((indicadores.atualizacoesEntregues / indicadores.totalAtualizacoes) * 100) : 0;
+
+                return `
+                    <div class="grid grid-cols-5 gap-6">
+                        <div class="col-span-1 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center items-center text-center">
+                             <p class="text-sm font-medium text-gray-500 leading-tight">Meta de Entregas</p>
+                             <p class="text-4xl font-bold text-gray-800">${indicadores.meta_entregas || 0}</p>
+                        </div>
+                        <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-sm font-medium text-gray-500">Entregas (Cursos Novos)</p>
+                                <p class="text-sm font-semibold text-gray-700">${indicadores.novosEntregues || 0} / ${indicadores.totalNovos || 0} <span class="text-gray-500 font-medium">(${novosPercent}%)</span></p>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-5">
+                                <div class="h-5 rounded-full" style="width: ${novosPercent}%; background-color: #235937;"></div>
+                            </div>
+                        </div>
+                        <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
+                            <div class="flex justify-between items-center mb-2">
+                                <p class="text-sm font-medium text-gray-500">Entregas (Atualizações)</p>
+                                <p class="text-sm font-semibold text-gray-700">${indicadores.atualizacoesEntregues || 0} / ${indicadores.totalAtualizacoes || 0} <span class="text-gray-500 font-medium">(${atualizacoesPercent}%)</span></p>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-5">
+                                <div class="h-5 rounded-full" style="width: ${atualizacoesPercent}%; background-color: #235937;"></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function generateCarouselHTML(proximosLancamentos) {
+                if (!proximosLancamentos || proximosLancamentos.length === 0) return '';
+                
+                const hoje = new Date();
+                hoje.setUTCHours(0, 0, 0, 0);
+
+                const dezProximos = proximosLancamentos
+                    .map(c => ({...c, dateObj: parseDate(c.dataLancamento)}))
+                    .filter(c => c.dateObj && c.dateObj >= hoje)
+                    .sort((a, b) => a.dateObj - b.dateObj)
+                    .slice(0, 10);
+                
+                if (dezProximos.length === 0) return `<div class="bg-white p-6 rounded-lg border border-gray-200 text-center text-gray-500">Nenhum lançamento futuro encontrado.</div>`;
+
+                const items = dezProximos.map(curso => {
+                    const data = curso.dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+                    const formattedDate = data.charAt(0).toUpperCase() + data.slice(1);
+                    return `
+                        <div class="carousel-item" data-course-name="${curso.nome}" data-course-level="${curso.nivel}">
+                            <div class="bg-[rgba(35,89,55,0.1)] p-4 rounded-lg border border-gray-200 h-full flex flex-col">
+                                <p class="font-bold text-gray-800 text-sm leading-tight">${curso.nome}</p>
+                                <p class="text-xs text-gray-500 mt-1">${curso.nivel || 'Nível não definido'}</p>
+                                <div class="mt-auto pt-2 text-xs font-semibold text-[#235937]">${formattedDate}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <div class="bg-white p-6 rounded-lg border border-gray-200">
+                        <div class="flex items-center justify-between mb-3">
+                            <h2 class="text-lg font-semibold text-gray-700">Próximos Lançamentos</h2>
+                        </div>
+                        <div class="carousel-wrapper">
+                            <div class="carousel-container">
+                                <div id="carousel-track" class="carousel-track -mx-3">
+                                    ${items}
+                                </div>
+                            </div>
+                             <button id="prev-btn" class="carousel-btn prev">
+                                <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                            </button>
+                            <button id="next-btn" class="carousel-btn next">
+                                <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderInicio(indicadores, analiseDoAno, proximosLancamentos) {
+                const container = document.getElementById('inicio');
+                container.innerHTML = `
+                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                    <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
+                        <div class="flex-shrink-0">
+                            ${generateTopCardsHTML(indicadores)}
+                        </div>
+                        <div class="flex-grow grid grid-cols-3 gap-6 min-h-0">
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="etapasChart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="trimestreChart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="nivelChart"></canvas></div>
+                        </div>
+                        <div class="flex-shrink-0">
+                            ${generateCarouselHTML(proximosLancamentos)}
+                        </div>
+                    </div>
+                `;
+                renderCharts(analiseDoAno);
+                setupCarousel(proximosLancamentos);
+            }
+
+            function renderCharts(analiseDoAno) {
+                Chart.register(ChartDataLabels);
+                renderEtapasChart(analiseDoAno.cursosPorEtapa || {});
+                renderTrimestreChart(analiseDoAno.planejamentoTrimestral || {});
+                renderNivelChart(analiseDoAno.cursosPorNivel || {});
+            }
+
+            function renderEtapasChart(data) {
+                if (charts.etapas) charts.etapas.destroy();
+                const ctx = document.getElementById('etapasChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const labelsOriginal = ["Etapa 1", "Etapa 2", "Etapa 3", "Etapa 4", "Etapa 5", "Etapa 6", "Entregue"];
+                const labels = labelsOriginal.filter(l => l !== 'Entregue');
+                const chartData = labels.map(label => data[label] || 0);
+                const maxValue = Math.max(...chartData, 0);
+
+                charts.etapas = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: chartData, backgroundColor: 'rgba(35, 89, 55, 0.7)' }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            title: { display: true, text: 'Etapa Atual dos Cursos', font: { size: 18 } },
+                            legend: { display: false },
+                            datalabels: { anchor: 'end', align: 'end', color: '#4b5563', font: { weight: 'bold' } }
+                        }, 
+                        scales: { 
+                            y: { beginAtZero: true, grid: { drawBorder: false }, suggestedMax: maxValue + 5, ticks: { stepSize: 10 } },
+                            x: { grid: { display: false } }
+                        } 
+                    }
+                });
+            }
+
+            function renderTrimestreChart(data) {
+                if (charts.trimestre) charts.trimestre.destroy();
+                const ctx = document.getElementById('trimestreChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                let labels = [];
+                let chartData = [];
+
+                if (selectedYear === 'all') {
+                    const years = Object.keys(dashboardData.analises).filter(y => y !== 'Total').sort();
+                    years.forEach(year => {
+                        const trimestres = dashboardData.analises[year].planejamentoTrimestral || {};
+                        for (let i = 1; i <= 4; i++) {
+                            labels.push(`${i}º Tri/${year.slice(-2)}`);
+                            chartData.push(trimestres[`T${i}`] || 0);
+                        }
+                    });
+                } else {
+                    labels = ["1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre"];
+                    chartData = labels.map((_, i) => data[`T${i+1}`] || 0);
+                }
+                const maxValue = Math.max(...chartData, 0);
+                
+                charts.trimestre = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: chartData, fill: true, backgroundColor: 'rgba(35, 89, 55, 0.7)', borderColor: '#235937', tension: 0.4 }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            title: { display: true, text: 'Planejamento de Entregas', font: { size: 18 } },
+                            legend: { display: false },
+                            datalabels: { anchor: 'end', align: 'end', color: '#235937', font: { weight: 'bold' } }
+                        }, 
+                        scales: { 
+                            y: { beginAtZero: true, grid: { drawBorder: false }, suggestedMax: maxValue + 5, ticks: { stepSize: 10 } },
+                            x: { grid: { display: false } }
+                        } 
+                    }
+                });
+            }
+
+            function renderNivelChart(data) {
+                if (charts.nivel) charts.nivel.destroy();
+                const ctx = document.getElementById('nivelChart')?.getContext('2d');
+                if (!ctx) return;
+                
+                const labels = Object.keys(data);
+                const chartData = Object.values(data);
+                const backgroundColors = labels.map((_, i) => `rgba(35, 89, 55, ${1 - i * 0.15})`);
+
+                charts.nivel = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{ data: chartData, backgroundColor: backgroundColors, borderColor: '#ffffff', borderWidth: 2 }]
+                    },
+                    options: { 
+                        responsive: true, maintainAspectRatio: false, 
+                        plugins: { 
+                            title: { display: true, text: 'Nível dos Cursos', font: { size: 18 } },
+                            legend: { position: 'bottom' },
+                             datalabels: {
+                                formatter: (value, ctx) => {
+                                    let sum = 0;
+                                    ctx.chart.data.datasets[0].data.forEach(d => { sum += d; });
+                                    if (sum === 0) return '0%';
+                                    let percentage = (value * 100 / sum).toFixed(0) + "%";
+                                    return percentage;
+                                },
+                                color: '#fff',
+                            }
+                        } 
+                    }
+                });
+            }
+            
+            function setupCarousel(proximosLancamentos) {
+                if (carouselInterval) clearInterval(carouselInterval);
+                const track = document.getElementById('carousel-track');
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+
+                const hoje = new Date();
+                hoje.setUTCHours(0, 0, 0, 0);
+
+                const proximos = proximosLancamentos
+                    .map(c => ({...c, dateObj: parseDate(c.dataLancamento)}))
+                    .filter(c => c.dateObj && c.dateObj >= hoje);
+                
+                if (!track || proximos.length <= 5) {
+                    if (prevBtn) prevBtn.style.display = 'none';
+                    if (nextBtn) nextBtn.style.display = 'none';
+                    return;
+                }
+                
+                let index = 0;
+                const totalItems = track.children.length;
+                const maxIndex = totalItems - 5;
+
+                function updateCarousel() {
+                    track.style.transform = `translateX(-${index * (100 / 5)}%)`;
+                }
+
+                function resetAndStartInterval() {
+                    clearInterval(carouselInterval);
+                    carouselInterval = setInterval(() => {
+                        index++;
+                        if (index > maxIndex) {
+                            index = 0;
+                        }
+                        updateCarousel();
+                    }, 4000);
+                }
+
+                prevBtn.addEventListener('click', () => {
+                    index--;
+                    if (index < 0) {
+                        index = maxIndex;
+                    }
+                    updateCarousel();
+                    resetAndStartInterval();
+                });
+
+                nextBtn.addEventListener('click', () => {
+                    index++;
+                    if (index > maxIndex) {
+                        index = 0;
+                    }
+                    updateCarousel();
+                    resetAndStartInterval();
+                });
+
+                resetAndStartInterval();
+            }
+
+            function generateTecnicoFilterHTML(cursos) {
+                const tecnicos = ['Todos', ...[...new Set(cursos.map(c => c.tecnico).filter(Boolean))].sort()];
+                
+                const buttonsHTML = tecnicos.map(tecnico => {
+                    let isActive = false;
+                    if (tecnico === 'Todos' && activeFilters.tecnico.length === 0) {
+                        isActive = true;
+                    } else if (activeFilters.tecnico.length === 1 && activeFilters.tecnico[0] === tecnico) {
+                        isActive = true;
+                    }
+
+                    const activeClass = isActive ? 'bg-green-700 text-white' : 'bg-white text-gray-700 hover:bg-gray-100';
+                    return `<button class="tecnico-filter-btn flex-shrink-0 px-4 py-3 text-sm font-medium border rounded-md transition-colors ${activeClass}" data-tecnico="${tecnico}">
+                                ${tecnico}
+                            </button>`;
+                }).join('');
+
+                return `
+                    <div class="bg-white p-4 rounded-lg border">
+                        <div class="flex space-x-2 overflow-x-auto pb-2 tecnico-filter-container">
+                            ${buttonsHTML}
+                        </div>
+                    </div>
+                `;
+            }
+
+            function renderRelatorios(indicadores, cursos) {
+                const container = document.getElementById('relatorio');
+
+                const coursesWithKpi = cursos.filter(c => typeof c.indicadorReal === 'number' && !isNaN(c.indicadorReal));
+                let kpiValue = 0;
+                if (coursesWithKpi.length > 0) {
+                    const kpiSum = coursesWithKpi.reduce((sum, course) => sum + course.indicadorReal, 0);
+                    kpiValue = Math.round((kpiSum / coursesWithKpi.length) * 100);
+                }
+
+                 container.innerHTML = `
+                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                     <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
+                        <div class="flex-shrink-0 grid grid-cols-6 gap-6">
+                            <div class="col-span-5 flex flex-col gap-6">
+                                ${generateRelatorioCardsHTML(indicadores)}
+                                ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
+                            </div>
+                             <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
+                                <h3 class="text-center font-semibold text-gray-700 mb-2">KPI Médio dos Cursos</h3>
+                                ${generateKpiGauge(kpiValue)}
+                            </div>
+                        </div>
+                        <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0">
+                           <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                                <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
+                                <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                      <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                            <div class="overflow-y-auto table-container">
+                                ${generateRelatorioTableHTML(cursos)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            function generateRelatorioCardsHTML(indicadores) {
+                return `
+                    <div class="grid grid-cols-5 gap-6">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.totalCursos}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Total de Cursos</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.cursosNovos}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Cursos Novos</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.atualizacoes}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Atualizações</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-green-600">${indicadores.entregues}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Entregues</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-yellow-500">${indicadores.restante}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Restante</p>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            function getIndicatorColorClass(percentage) {
+                if (percentage >= 0 && percentage <= 5) return 'bg-gray-500';
+                if (percentage >= 6 && percentage <= 15) return 'bg-red-500';
+                if (percentage >= 16 && percentage <= 30) return 'bg-orange-500';
+                if (percentage >= 31 && percentage <= 70) return 'bg-lime-500';
+                return 'bg-green-700';
+            }
+
+            function generateRelatorioTableHTML(cursos) {
+                const getSortIndicator = (key) => {
+                    if (sortConfig.key !== key) return '';
+                    return sortConfig.direction === 'ascending' ? '▲' : '▼';
+                };
+
+                const tableRows = cursos.map(curso => {
+                    const dateObj = parseDate(curso.dataDisponivel);
+                    const data = dateObj ? dateObj.toLocaleDateString('pt-BR', {month: '2-digit', year: 'numeric', timeZone: 'UTC'}) : 'N/D';
+                    const colorClass = getIndicatorColorClass(curso.indicadorReal * 100);
+                    return `
+                        <tr class="hover:bg-gray-50 cursor-pointer report-table-row" data-course-name="${curso.nome}" data-course-level="${curso.nivel}">
+                            <td class="px-6 py-4 whitespace-nowrap"><div class="w-3 h-3 rounded-full ${colorClass}"></div></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${curso.nome}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.nivel || 'N/D'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.tipo || 'N/D'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${data}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.pedagogo || 'N/D'}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${curso.etapaAtual || 'N/D'}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                return `
+                         <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50 sticky top-0 z-10">
+                                <tr>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
+                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
+                        </table>
+                `;
+            }
+
+            // --- FUNÇÃO DO KPI ---
+
+            function generateKpiGauge(percentage) {
+                const rotation = (percentage / 100) * 180 - 90;
+                const color = percentage < 30 ? '#ef4444' : percentage < 70 ? '#f59e0b' : '#22c55e';
+                return `
+                    <div class="gauge-container">
+                        <svg viewBox="0 0 100 57" class="w-full">
+                            <path d="M 5 50 A 45 45 0 0 1 95 50" fill="none" stroke="#e5e7eb" stroke-width="10" />
+                            <path d="M 5 50 A 45 45 0 0 1 95 50" fill="none" stroke="${color}" stroke-width="10" stroke-dasharray="141.37" stroke-dashoffset="${141.37 * (1 - percentage/100)}"/>
+                            <line x1="50" y1="50" x2="50" y2="15" stroke="#4b5563" stroke-width="2" transform="rotate(${rotation} 50 50)" />
+                            <circle cx="50" cy="50" r="4" fill="#4b5563"/>
+                        </svg>
+                        <div class="gauge-text">${percentage}%</div>
+                    </div>
+                `;
+            }
+
+            function generateCalendarFiltersHTML() {
+                const container = document.getElementById('calendar-filters-container');
+                if (!container || !dashboardData) return;
+
+                const { allEvents } = dashboardData;
+                const tecnicos = [...new Set(allEvents.map(e => e.extendedProps.tecnico).filter(Boolean))].sort();
+                const pedagogos = [...new Set(allEvents.map(e => e.extendedProps.pedagogo).filter(Boolean))].sort();
+                const types = [...new Set(allEvents.map(e => e.extendedProps.eventType).filter(Boolean))].sort();
+
+                const createCheckboxes = (title, items, filterKey) => {
+                    if (items.length === 0) return '';
+                    let checkboxes = items.map(item => `
+                        <label class="flex items-center text-sm p-1 rounded hover:bg-gray-200">
+                            <input type="checkbox" class="calendar-filter-checkbox h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" data-filter-key="${filterKey}" value="${item}">
+                            <span class="ml-2 text-gray-700">${item}</span>
+                        </label>
+                    `).join('');
+                    return `<div class="mb-4">
+                                <h4 class="font-semibold mb-2 text-gray-800">${title}</h4>
+                                <div class="space-y-1">${checkboxes}</div>
+                           </div>`;
+                };
+
+                container.innerHTML = `
+                    <div class="p-2">
+                        ${createCheckboxes('Técnico', tecnicos, 'tecnico')}
+                        ${createCheckboxes('Pedagogo', pedagogos, 'pedagogo')}
+                        ${createCheckboxes('Tipo de Evento', types, 'type')}
+                    </div>
+                `;
+            }
+
+            // --- NOVA FUNÇÃO PARA INICIALIZAR O FULLCALENDAR ---
+            function initializeFullCalendar() {
+                const calendarEl = document.getElementById('full-calendar-container');
+                if (!calendarEl || !dashboardData.allEvents) return;
+
+                let eventsToRender = dashboardData.allEvents;
+
+                // Apply calendar filters
+                const activeTecnicos = calendarFilters.tecnico;
+                const activePedagogos = calendarFilters.pedagogo;
+                const activeTypes = calendarFilters.type;
+
+                if (activeTecnicos.length > 0 || activePedagogos.length > 0 || activeTypes.length > 0) {
+                    eventsToRender = eventsToRender.filter(event => {
+                        const props = event.extendedProps;
+                        const tecnico = props.tecnico || '';
+                        const pedagogo = props.pedagogo || '';
+                        const type = props.eventType || '';
+
+                        const tecnicoMatch = activeTecnicos.length === 0 || activeTecnicos.includes(tecnico);
+                        const pedagogoMatch = activePedagogos.length === 0 || activePedagogos.includes(pedagogo);
+                        const typeMatch = activeTypes.length === 0 || activeTypes.includes(type);
+
+                        return tecnicoMatch && pedagogoMatch && typeMatch;
+                    });
+                }
+
+                if (fullCalendarInstance) {
+                    fullCalendarInstance.destroy();
+                }
+
+                fullCalendarInstance = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'dayGridMonth',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,listWeek'
+                    },
+                    locale: 'pt-br',
+                    buttonText: {
+                        today: 'Hoje',
+                        month: 'Mês',
+                        week: 'Semana',
+                        list: 'Lista'
+                    },
+                    events: eventsToRender,
+                    allDayDefault: true,
+                    eventDisplay: 'block',
+                    displayEventTime: false,
+                    eventClick: function(info) {
+                        info.jsEvent.preventDefault();
+                        const props = info.event.extendedProps;
+                        if (props.courseName && props.courseLevel) {
+                             document.getElementById('calendar-modal').classList.add('hidden');
+                            openModal(props.courseName, props.courseLevel);
+                        }
+                    }
+                });
+                
+                fullCalendarInstance.render();
+            }
+
+            function renderPedagogos() {
+                document.getElementById('pedagogos').innerHTML = `
+                    ${generateHeaderHTML(selectedYear, dashboardData.cronograma)}
+                     <div class="flex-grow p-6 main-content-area">
+                        <!-- Área de conteúdo para design da aba Pedagogos -->
+                    </div>
+                `;
+            }
+            
+            function updateDashboardView() {
+                if (!dashboardData) return;
+
+                const yearKey = selectedYear === 'all' ? 'Total' : selectedYear;
+                const analiseDoAno = dashboardData.analises[yearKey] || { totalEntregas: {}, metaEntregas: 0, cursosPorEtapa: {}, planejamentoTrimestral: {}, cursosPorNivel: {} };
+                const entregas = analiseDoAno.totalEntregas || {};
+                
+                let filteredCoursesByYear = (selectedYear === 'all')
+                    ? dashboardData.fullCronograma
+                    : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
+                
+                let filteredCourses = filteredCoursesByYear.filter(course => {
+                    return (activeFilters.tecnico.length === 0 || activeFilters.tecnico.includes(course.tecnico)) &&
+                           (activeFilters.pedagogo.length === 0 || activeFilters.pedagogo.includes(course.pedagogo)) &&
+                           (activeFilters.etapaAtual.length === 0 || activeFilters.etapaAtual.includes(course.etapaAtual)) &&
+                           (activeFilters.nivel.length === 0 || activeFilters.nivel.includes(course.nivel)) &&
+                           (activeFilters.tipo.length === 0 || activeFilters.tipo.includes(course.tipo));
+                });
+                
+                filteredCourses.sort((a, b) => {
+                    const key = sortConfig.key;
+                    const direction = sortConfig.direction === 'ascending' ? 1 : -1;
+                    
+                    if (key === 'dataDisponivel') {
+                        const dateA = parseDate(a[key]);
+                        const dateB = parseDate(b[key]);
+                        if (!dateA && !dateB) return 0;
+                        if (!dateA) return 1 * direction;
+                        if (!dateB) return -1 * direction;
+                        return (dateA - dateB) * direction;
+                    }
+
+                    const valA = a[key] || '';
+                    const valB = b[key] || '';
+                    if (typeof valA === 'string') {
+                        return valA.localeCompare(valB) * direction;
+                    }
+                    return (valA - valB) * direction;
+                });
+
+
+                const indicadoresInicio = {
+                    meta_entregas: analiseDoAno.metaEntregas,
+                    totalNovos: entregas.totalNovos,
+                    novosEntregues: entregas.novosEntregues,
+                    totalAtualizacoes: entregas.totalAtualizacoes,
+                    atualizacoesEntregues: entregas.atualizacoesEntregues,
+                };
+                
+                const entreguesCount = filteredCourses.filter(c => c.etapaAtual && c.etapaAtual.toLowerCase() === 'entregue').length;
+                const indicadoresRelatorio = {
+                    totalCursos: filteredCourses.length,
+                    cursosNovos: filteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('novo')).length,
+                    atualizacoes: filteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('atualização')).length,
+                    entregues: entreguesCount,
+                    restante: filteredCourses.length - entreguesCount
+                };
+                
+                const proximosLancamentos = dashboardData.proximosLancamentos || [];
+
+                renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
+                renderRelatorios(indicadoresRelatorio, filteredCourses);
+                renderPedagogos();
+
+                const activeLink = document.querySelector('.menu-link.active');
+                const activeTabId = activeLink ? activeLink.getAttribute('href').substring(1) : 'inicio';
+                
+                document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+                document.getElementById(activeTabId)?.classList.remove('hidden');
+                
+                const filterBtn = document.getElementById('filter-btn');
+                if (filterBtn) {
+                     const isFilterActive = Object.values(activeFilters).some(arr => arr.length > 0);
+                     filterBtn.classList.toggle('active', isFilterActive);
+                }
+            }
+
+            // --- Lógica do Modal ---
+            function openModal(courseName, courseLevel) {
+                document.getElementById('tab-detalhes').classList.add('active');
+                document.getElementById('tab-agenda').classList.remove('active');
+                document.getElementById('content-detalhes').classList.remove('hidden');
+                document.getElementById('content-agenda').classList.add('hidden');
+
+                const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
+                if (!course) return;
+                
+                const percentual = course.indicadorReal ? `${(course.indicadorReal * 100).toFixed(0)}%` : '';
+                const dateObj = parseDate(course.dataDisponivel);
+                const dataEntrega = dateObj ? dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
+                const formattedEntrega = dataEntrega !== 'N/D' ? dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1) : 'N/D';
+
+                const modalHeader = document.querySelector('#course-modal .modal-header');
+                const percentageValue = course.indicadorReal ? course.indicadorReal * 100 : -1;
+                let headerColor = '#6b7280'; 
+                if (percentageValue >= 0 && percentageValue <= 5) headerColor = '#6b7280';
+                else if (percentageValue >= 6 && percentageValue <= 15) headerColor = '#ef4444';
+                else if (percentageValue >= 16 && percentageValue <= 30) headerColor = '#f97316';
+                else if (percentageValue >= 31 && percentageValue <= 70) headerColor = '#4d7c0f';
+                else if (percentageValue > 70) headerColor = '#235937';
+                modalHeader.style.backgroundColor = headerColor;
+
+                document.getElementById('modal-course-name').innerHTML = `
+                    <span class="text-xl font-bold">${course.nome}</span>
+                    <div class="flex items-center gap-4 ml-auto text-sm">
+                        ${percentual ? `<span class="font-normal bg-white/20 px-2 py-1 rounded-md">Indicador: ${percentual}</span>` : ''}
+                        <span class="font-normal bg-white/20 px-2 py-1 rounded-md">Entrega: ${formattedEntrega}</span>
+                    </div>
+                `;
+                
+                document.getElementById('content-detalhes').innerHTML = `
+                     <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                        <div class="col-span-2 p-3 bg-white border rounded-md">
+                            <p class="text-gray-500 font-semibold">Etapa Atual</p>
+                            <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
+                        </div>
+                        <div><p class="text-gray-500 font-semibold">Nível do Curso</p><p class="text-gray-900">${course.nivel || 'N/D'}</p></div>
+                        <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
+                        <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
+                        <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
+                    </div>
+                `;
+                
+                const allEvents = new Map();
+                const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
+                
+                const mainCourseEvents = dashboardData.fullCronograma.filter(c => c.nome === courseName && c.nivel === courseLevel);
+                mainCourseEvents.forEach(c => {
+                    const pilotoInicio = parseDate(c.pilotoInicio);
+                    if (pilotoInicio) {
+                        const pilotoFim = parseDate(c.pilotoFim) || pilotoInicio;
+                        const key = `piloto-${toDateKey(pilotoInicio)}-${toDateKey(pilotoFim)}`;
+                        if (!allEvents.has(key)) {
+                            allEvents.set(key, { type: 'Piloto', inicio: pilotoInicio, fim: pilotoFim });
+                        }
+                    }
+                    const formacaoInicio = parseDate(c.formacaoInicio);
+                    if (formacaoInicio) {
+                         const formacaoFim = parseDate(c.formacaoFim) || formacaoInicio;
+                         const key = `formacao-${toDateKey(formacaoInicio)}-${toDateKey(formacaoFim)}`;
+                         if (!allEvents.has(key)) {
+                            allEvents.set(key, { type: 'Formação', inicio: formacaoInicio, fim: formacaoFim });
+                         }
+                    }
+                });
+                
+                const formationEvents = dashboardData.formacoes.filter(f => f.curso.includes(courseName));
+                 formationEvents.forEach(f => {
+                    const inicio = parseDate(f.inicio);
+                    if (inicio) {
+                        const fim = parseDate(f.fim) || inicio;
+                        const key = `formacao-${toDateKey(inicio)}-${toDateKey(fim)}`;
+                        if (!allEvents.has(key)) {
+                            allEvents.set(key, { type: 'Formação', inicio: inicio, fim: fim });
+                        }
+                    }
+                });
+
+                const sortedEvents = Array.from(allEvents.values()).sort((a,b) => a.inicio - b.inicio);
+
+                const agendaContent = document.getElementById('content-agenda');
+                if (sortedEvents.length > 0) {
+                    const today = new Date();
+                    today.setUTCHours(0,0,0,0);
+                    
+                    agendaContent.innerHTML = sortedEvents.map(event => {
+                        const endDate = event.fim;
+                        const isPast = endDate < today;
+                        const dateClass = isPast ? 'text-gray-400' : 'text-gray-800 font-semibold';
+                        const iconColor = isPast ? 'bg-gray-300 text-gray-600' : 'bg-green-100 text-green-800';
+                        
+                        let eventTypeLabel = '';
+                        let iconSvg = '';
+
+                        switch (event.type) {
+                            case 'Piloto':
+                                eventTypeLabel = 'Piloto';
+                                iconSvg = `<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>`;
+                                break;
+                            case 'Formação':
+                                eventTypeLabel = 'Formação';
+                                iconSvg = `<svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>`;
+                                break;
+                        }
+                        
+                        return `
+                            <div class="flex items-center p-3 rounded-md mb-2 ${isPast ? 'opacity-60' : ''}">
+                                <div class="flex-shrink-0 w-10 h-10 rounded-full ${iconColor} flex items-center justify-center font-bold mr-4 text-sm">
+                                    ${iconSvg}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-gray-700">${eventTypeLabel}</p>
+                                    <p class="${dateClass} text-sm">${event.inicio.toLocaleDateString('pt-BR', {timeZone: 'UTC'})} a ${event.fim.toLocaleDateString('pt-BR', {timeZone: 'UTC'})}</p>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                } else {
+                    agendaContent.innerHTML = `<p class="text-center text-gray-500 py-4">Nenhuma data de piloto ou formação encontrada.</p>`;
+                }
+                
+                document.getElementById('course-modal').classList.remove('hidden');
+            }
+
+            document.getElementById('modal-close-btn').addEventListener('click', () => {
+                document.getElementById('course-modal').classList.add('hidden');
+            });
+            document.getElementById('filter-close-btn').addEventListener('click', () => {
+                document.getElementById('filter-modal').classList.add('hidden');
+            });
+            document.getElementById('calendar-close-btn').addEventListener('click', () => {
+                document.getElementById('calendar-modal').classList.add('hidden');
+            });
+
+            document.getElementById('tab-detalhes').addEventListener('click', () => {
+                document.getElementById('tab-detalhes').classList.add('active');
+                document.getElementById('tab-agenda').classList.remove('active');
+                document.getElementById('content-detalhes').classList.remove('hidden');
+                document.getElementById('content-agenda').classList.add('hidden');
+            });
+             document.getElementById('tab-agenda').addEventListener('click', () => {
+                document.getElementById('tab-agenda').classList.add('active');
+                document.getElementById('tab-detalhes').classList.remove('active');
+                document.getElementById('content-agenda').classList.remove('hidden');
+                document.getElementById('content-detalhes').classList.add('hidden');
+            });
+
+
+            document.body.addEventListener('click', function(e) {
+                const menuButton = e.target.closest('.menu-button');
+                if (menuButton) {
+                    const dropdown = menuButton.nextElementSibling;
+                    dropdown.classList.toggle('hidden');
+                    document.querySelectorAll('.menu-dropdown').forEach(d => { if (d !== dropdown) d.classList.add('hidden'); });
+                } else if (!e.target.closest('.menu-dropdown')) {
+                     document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.add('hidden'));
+                }
+
+                const menuLink = e.target.closest('.menu-link');
+                if (menuLink) {
+                    e.preventDefault();
+                    document.querySelectorAll('.menu-link').forEach(item => item.classList.remove('active'));
+                    menuLink.classList.add('active');
+                    const targetId = menuLink.getAttribute('href').substring(1);
+                    document.querySelectorAll('.content-section').forEach(section => section.classList.add('hidden'));
+                    document.getElementById(targetId)?.classList.remove('hidden');
+                }
+                
+                const searchResult = e.target.closest('.search-suggestion-item');
+                const carouselItem = e.target.closest('.carousel-item');
+                const reportRow = e.target.closest('.report-table-row');
+
+                if (searchResult || carouselItem || reportRow) {
+                    e.preventDefault();
+                    const target = searchResult || carouselItem || reportRow;
+                    const courseName = target.dataset.courseName;
+                    const courseLevel = target.dataset.courseLevel;
+                    openModal(courseName, courseLevel);
+
+                    const activeSection = document.querySelector('.content-section:not(.hidden)');
+                    if (activeSection) {
+                        const searchBar = activeSection.querySelector('.search-bar');
+                        const suggestionsContainer = activeSection.querySelector('.search-suggestions');
+                        if(searchBar) searchBar.value = '';
+                        if(suggestionsContainer) suggestionsContainer.classList.add('hidden');
+                    }
+                }
+                
+                const sortHeader = e.target.closest('.sortable-header');
+                if(sortHeader) {
+                    const key = sortHeader.dataset.sort;
+                    const direction = sortConfig.key === key && sortConfig.direction === 'ascending' ? 'descending' : 'ascending';
+                    sortConfig = { key, direction };
+                    updateDashboardView();
+                }
+                
+                if (e.target.closest('#filter-btn')) {
+                    populateFilterModal();
+                    document.getElementById('filter-modal').classList.remove('hidden');
+                }
+                if (e.target.closest('#apply-filters-btn')) {
+                    applyFilters();
+                }
+                if (e.target.closest('#clear-filters-btn')) {
+                    clearFilters();
+                }
+                 if (e.target.closest('#header-calendar-btn')) {
+                    document.getElementById('calendar-modal').classList.remove('hidden');
+                    // Timeout para garantir que o modal esteja visível antes de renderizar
+                    setTimeout(() => {
+                        generateCalendarFiltersHTML();
+                        initializeFullCalendar();
+                    }, 0);
+                }
+
+                if (e.target.closest('#calendar-filter-btn')) {
+                    document.getElementById('calendar-filters-container').classList.toggle('hidden');
+                }
+                
+                const tecnicoBtn = e.target.closest('.tecnico-filter-btn');
+                if (tecnicoBtn) {
+                    const tecnico = tecnicoBtn.dataset.tecnico;
+                    activeFilters.tecnico = (tecnico === 'Todos') ? [] : [tecnico];
+                    updateDashboardView();
+                }
+            });
+            
+             document.body.addEventListener('input', function(e) {
+                const searchBar = e.target.closest('.search-bar');
+                 if (searchBar && dashboardData) {
+                    const suggestionsContainer = searchBar.parentElement.querySelector('.search-suggestions');
+                    const query = searchBar.value.toLowerCase();
+                    const yearToFilter = selectedYear === 'all' ? null : parseInt(selectedYear);
+
+                    if (query.length < 2) {
+                        suggestionsContainer.classList.add('hidden');
+                        return;
+                    }
+                    
+                    const filtered = dashboardData.fullCronograma.filter(c => {
+                        const matchesQuery = (c.nome.toLowerCase().includes(query) || (c.nivel || '').toLowerCase().includes(query));
+                        const matchesYear = !yearToFilter || c.anoDisponivel === yearToFilter;
+                        return matchesQuery && matchesYear;
+                    });
+                    
+                    if(filtered.length > 0) {
+                        suggestionsContainer.innerHTML = filtered.map(c => `<a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 search-suggestion-item" data-course-name="${c.nome}" data-course-level="${c.nivel}">${c.nome} | <span class="text-gray-500">${c.nivel || 'N/D'}</span></a>`).join('');
+                        suggestionsContainer.classList.remove('hidden');
+                    } else {
+                        suggestionsContainer.classList.add('hidden');
+                    }
+                }
+
+                if (e.target.classList.contains('calendar-filter-checkbox')) {
+                    const key = e.target.dataset.filterKey;
+                    const value = e.target.value;
+                    if (e.target.checked) {
+                        calendarFilters[key].push(value);
+                    } else {
+                        calendarFilters[key] = calendarFilters[key].filter(item => item !== value);
+                    }
+                    initializeFullCalendar(); // Re-renderiza o calendário com os filtros aplicados
+                }
+            });
+
+            document.body.addEventListener('change', function(e) {
+                if (e.target.classList.contains('year-selector')) {
+                    selectedYear = e.target.value;
+                    updateDashboardView();
+                }
+            });
+            
+            function populateFilterModal() {
+                const modalBody = document.getElementById('filter-modal-body');
+                const courses = (selectedYear === 'all')
+                    ? dashboardData.fullCronograma
+                    : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
+                
+                const filters = {
+                    tecnico: 'Técnicos',
+                    pedagogo: 'Pedagogos',
+                    etapaAtual: 'Etapa Atual',
+                    nivel: 'Nível',
+                    tipo: 'Tipo'
+                };
+
+                let html = '';
+                for(const key in filters) {
+                    const uniqueValues = [...new Set(courses.map(c => c[key]).filter(Boolean))].sort();
+                    html += `<div><h3 class="font-semibold mb-2">${filters[key]}</h3><div class="space-y-1">`;
+                    uniqueValues.forEach(value => {
+                        const isChecked = activeFilters[key].includes(value) ? 'checked' : '';
+                        html += `<label class="flex items-center"><input type="checkbox" class="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" data-filter-key="${key}" value="${value}" ${isChecked}> <span class="ml-2 text-sm text-gray-700">${value}</span></label>`;
+                    });
+                    html += `</div></div>`;
+                }
+                modalBody.innerHTML = html;
+            }
+
+            function applyFilters() {
+                 const newFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+                 document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked').forEach(checkbox => {
+                     const key = checkbox.dataset.filterKey;
+                     newFilters[key].push(checkbox.value);
+                 });
+                 activeFilters = newFilters;
+                 updateDashboardView();
+                 document.getElementById('filter-modal').classList.add('hidden');
+            }
+
+            function clearFilters() {
+                activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+                updateDashboardView();
+                document.getElementById('filter-modal').classList.add('hidden');
+            }
+
+
+            async function initialize() {
+                try {
+                    const response = await fetch(API_URL);
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const apiResponse = await response.json();
+                    
+                    if (!apiResponse || typeof apiResponse !== 'object' || !apiResponse.dadosProcessados || !Array.isArray(apiResponse.dadosProcessados.cursos)) {
+                         throw new Error("A estrutura dos dados recebidos da API é inválida ou a resposta está vazia.");
+                    }
+                    
+                    const transformedCronograma = apiResponse.dadosProcessados.cursos.map(c => ({
+                        curso: c.nome,
+                        responsavel: c.pedagogo || c.tecnico || 'Não definido',
+                        data_inicio: c.pilotoInicio || c.formacaoInicio,
+                        data_fim: c.dataLancamento || c.dataDisponivel,
+                        progresso: c.percentual || 0,
+                        status: c.etapaAtual,
+                        nivel: c.nivel,
+                        anoDisponivel: c.anoDisponivel
+                    }));
+                    
+                    const allEvents = processAndUnifyEvents(apiResponse);
+
+                    dashboardData = {
+                        analises: apiResponse.analises,
+                        cronograma: transformedCronograma,
+                        proximosLancamentos: apiResponse.proximosLancamentos || [],
+                        fullCronograma: apiResponse.dadosProcessados.cursos || [],
+                        formacoes: apiResponse.dadosProcessados.formacoes || [],
+                        allEvents: allEvents
+                    };
+                    
+                    selectedYear = new Date().getFullYear().toString(); 
+                    updateDashboardView();
+                } catch (error) {
+                    console.error("Não foi possível buscar os dados:", error);
+                    const errorContainer = document.getElementById('inicio') || document.body;
+                    errorContainer.innerHTML = `<div class="m-6 p-4 text-red-700 bg-red-100 rounded-lg"><strong>Erro ao carregar os dados.</strong><br>${error.message}</div>`;
+                }
+            }
+
+            initialize();
+        });
+    </script>
+</body>
+</html>
