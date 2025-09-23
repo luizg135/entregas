@@ -764,8 +764,32 @@
                 let chartData = [];
 
                 if (selectedYear === 'all') {
-                    labels = ["1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre"];
-                    chartData = labels.map((_, i) => data[`T${i+1}`] || 0);
+                    const yearlyData = {};
+                    if (dashboardData && dashboardData.fullCronograma) {
+                        dashboardData.fullCronograma.forEach(course => {
+                            const date = parseDate(course.dataDisponivel);
+                            if (date) {
+                                const year = date.getUTCFullYear();
+                                const month = date.getUTCMonth(); // 0-11
+                                const quarter = `T${Math.floor(month / 3) + 1}`;
+
+                                if (!yearlyData[year]) {
+                                    yearlyData[year] = { T1: 0, T2: 0, T3: 0, T4: 0 };
+                                }
+                                yearlyData[year][quarter]++;
+                            }
+                        });
+                    }
+                    
+                    const sortedYears = Object.keys(yearlyData).sort((a, b) => a - b);
+                    
+                    sortedYears.forEach(year => {
+                        for (let q = 1; q <= 4; q++) {
+                            labels.push(`${q}º Trim. de ${year}`);
+                            chartData.push(yearlyData[year][`T${q}`] || 0);
+                        }
+                    });
+
                 } else {
                     labels = ["1º Trimestre", "2º Trimestre", "3º Trimestre", "4º Trimestre"];
                     chartData = labels.map((_, i) => data[`T${i+1}`] || 0);
@@ -1088,7 +1112,7 @@
                     let checkboxes = items.map(item => `
                         <label class="flex items-center text-sm p-1 rounded hover:bg-gray-200">
                             <input type="checkbox" class="calendar-filter-checkbox h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500" data-filter-key="${filterKey}" value="${item}">
-                            <span class="ml-2 text-gray-700">${capitalizeFirstLetter(item)}</span>
+                            <span class="ml-2 text-gray-700">${capitalizeFirstLetter(item.replace(/_/g, ' '))}</span>
                         </label>
                     `).join('');
                     return `<div class="mb-4">
