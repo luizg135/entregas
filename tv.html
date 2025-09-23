@@ -346,6 +346,10 @@
             font-weight: bold;
             color: #1f2937;
         }
+        .chart-row-compact {
+            height: 45vh; /* Define a altura da linha dos gráficos para 45% da altura da tela */
+            min-height: 350px; /* Garante uma altura mínima para telas menores */
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -701,11 +705,12 @@
                         <div class="flex-shrink-0">
                             ${generateTopCardsHTML(indicadores)}
                         </div>
-                        <div class="flex-grow grid grid-cols-3 gap-6 min-h-0">
-                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="etapasChart"></canvas></div>
-                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="trimestreChart"></canvas></div>
-                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative min-h-0"><canvas id="nivelChart"></canvas></div>
+                        <div class="grid grid-cols-3 gap-6 chart-row-compact">
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative h-full"><canvas id="etapasChart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative h-full"><canvas id="trimestreChart"></canvas></div>
+                            <div class="bg-white p-4 rounded-lg border border-gray-200 relative h-full"><canvas id="nivelChart"></canvas></div>
                         </div>
+                        <div>
                         <div class="flex-shrink-0">
                             ${generateCarouselHTML(proximosLancamentos)}
                         </div>
