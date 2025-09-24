@@ -103,14 +103,16 @@
         .table-container::-webkit-scrollbar,
         .main-content-area::-webkit-scrollbar,
         .modal-body::-webkit-scrollbar,
-        .tecnico-filter-container::-webkit-scrollbar {
+        .tecnico-filter-container::-webkit-scrollbar,
+        .notification-list-area::-webkit-scrollbar {
             display: none;
         }
         .search-suggestions,
         .table-container,
         .main-content-area,
         .modal-body,
-        .tecnico-filter-container {
+        .tecnico-filter-container,
+        .notification-list-area {
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
@@ -352,6 +354,30 @@
             font-weight: bold;
             color: #1f2937;
         }
+
+        /* Estilos de Notificação */
+        .notification-tab.active {
+            color: #235937;
+            border-bottom-color: #235937;
+        }
+        .notification-item {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #e5e7eb;
+            transition: background-color 0.2s;
+        }
+        .notification-item:hover {
+            background-color: #f9fafb;
+        }
+        .notification-item.unread {
+            background-color: #f0fdf4; /* Verde claro para não lidas */
+            cursor: pointer;
+        }
+        .notification-item.read {
+            opacity: 0.7;
+        }
+        .notification-item:last-child {
+            border-bottom: none;
+        }
     </style>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -443,6 +469,92 @@
             let activeFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
             let fullCalendarInstance = null;
             let calendarFilters = { tecnico: [], pedagogo: [] };
+            let allNotifications = [];
+            let readNotificationIds = new Set();
+            let lastDataTimestamp = null;
+
+            // --- FUNÇÕES DE NOTIFICAÇÃO ---
+            function getReadNotifications() {
+                try {
+                    const storedIds = localStorage.getItem('readNotificationIds');
+                    return storedIds ? new Set(JSON.parse(storedIds)) : new Set();
+                } catch (e) {
+                    console.error("Falha ao ler notificações do localStorage", e);
+                    return new Set();
+                }
+            }
+
+            function saveReadNotifications() {
+                localStorage.setItem('readNotificationIds', JSON.stringify([...readNotificationIds]));
+            }
+
+            function renderNotifications() {
+                const listUnreadContainer = document.getElementById('notification-list-unread');
+                const listReadContainer = document.getElementById('notification-list-read');
+                const counter = document.getElementById('notification-counter');
+                if (!listUnreadContainer || !listReadContainer || !counter) return;
+
+                readNotificationIds = getReadNotifications();
+                
+                const unreadNotifications = allNotifications.filter(n => !readNotificationIds.has(n.id));
+                const readNotifications = allNotifications.filter(n => readNotificationIds.has(n.id));
+
+                const unreadCount = unreadNotifications.length;
+
+                // Atualiza o contador
+                if (unreadCount > 0) {
+                    counter.textContent = unreadCount > 9 ? '9+' : unreadCount;
+                    counter.classList.remove('hidden');
+                } else {
+                    counter.classList.add('hidden');
+                }
+
+                // Renderiza a lista de não lidas
+                if (unreadNotifications.length === 0) {
+                    listUnreadContainer.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma notificação nova.</p>';
+                } else {
+                    listUnreadContainer.innerHTML = unreadNotifications.map(n => `
+                        <div class="notification-item unread" data-id="${n.id}">
+                            <p class="text-sm text-gray-800">${n.mensagem}</p>
+                        </div>
+                    `).join('');
+                }
+
+                // Renderiza a lista de lidas
+                if (readNotifications.length === 0) {
+                    listReadContainer.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma notificação lida.</p>';
+                } else {
+                    listReadContainer.innerHTML = readNotifications.map(n => `
+                        <div class="notification-item read" data-id="${n.id}">
+                            <p class="text-sm text-gray-800">${n.mensagem}</p>
+                        </div>
+                    `).join('');
+                }
+            }
+
+
+            // --- FUNÇÃO DE VERIFICAÇÃO DE DADOS ---
+            function setupReloadTimer() {
+                setInterval(async () => {
+                    try {
+                        const response = await fetch(API_BASE_URL);
+                        if (!response.ok) return;
+
+                        const latestData = await response.json();
+                        const newTimestamp = latestData.gerado_em;
+
+                        console.log(`Verificando atualizações... Atual: ${lastDataTimestamp}, Mais recente: ${newTimestamp}`);
+
+                        if (lastDataTimestamp && newTimestamp && lastDataTimestamp !== newTimestamp) {
+                            console.log("Novos dados encontrados. Recarregando a página.");
+                            location.reload();
+                        }
+                    } catch (error) {
+                        console.error("Erro ao verificar atualizações de dados:", error);
+                    }
+                }, 90000); // Verifica a cada 90 segundos
+            }
+
 
             // --- FUNÇÕES DE AJUDA ---
             function parseDate(dateInput) {
@@ -641,9 +753,29 @@
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
                                 <div class="search-suggestions hidden absolute mt-1 w-full bg-white rounded-lg shadow-xl z-10 border max-h-60 overflow-y-auto"></div>
                             </div>
-                            <button id="header-calendar-btn" class="p-2 rounded-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400/50 bg-green-700 text-white" title="Abrir Calendário">
-                                <svg class="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                            <button id="header-calendar-btn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50" title="Abrir Calendário">
+                                <svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             </button>
+                            <div class="relative" id="notification-container">
+                                <button id="notification-bell-btn" class="p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50" title="Notificações">
+                                    <svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                                    <span id="notification-counter" class="hidden absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold rounded-full h-4 w-4 flex items-center justify-center">0</span>
+                                </button>
+                                <div id="notification-panel" class="hidden absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-xl z-20 border">
+                                    <div class="p-3 font-bold text-gray-700 border-b">Notificações</div>
+                                    <div class="border-b border-gray-200">
+                                        <nav class="-mb-px flex space-x-4 px-4" aria-label="Tabs">
+                                            <button id="tab-nao-lidas" class="notification-tab active whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm">Não Lidas</button>
+                                            <button id="tab-lidas" class="notification-tab whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">Lidas</button>
+                                        </nav>
+                                    </div>
+                                    <div id="notification-list-unread" class="notification-list-area max-h-80 overflow-y-auto"></div>
+                                    <div id="notification-list-read" class="notification-list-area hidden max-h-80 overflow-y-auto"></div>
+                                    <div class="p-2 border-t text-center">
+                                        <button id="mark-all-read-btn" class="text-sm text-green-700 hover:underline">Marcar todas como lidas</button>
+                                    </div>
+                                </div>
+                            </div>
                             <div class="relative">
                                 <button class="menu-button p-2 rounded-full hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-gray-400/50"><svg class="h-6 w-6 text-gray-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg></button>
                                 <div class="menu-dropdown hidden absolute right-0 mt-2 w-60 bg-white rounded-lg shadow-xl z-10 border">
@@ -1317,6 +1449,9 @@
                      const isFilterActive = Object.values(activeFilters).some(arr => arr.length > 0);
                       filterBtn.classList.toggle('active', isFilterActive);
                 }
+
+                // Chamar renderNotifications aqui garante que os elementos existam no DOM
+                renderNotifications();
             }
 
             // --- Lógica do Modal ---
@@ -1444,6 +1579,7 @@
 
 
             document.body.addEventListener('click', function(e) {
+                // Lógica de Menus e Abas
                 const menuButton = e.target.closest('.menu-button');
                 if (menuButton) {
                     const dropdown = menuButton.nextElementSibling;
@@ -1463,10 +1599,10 @@
                     document.getElementById(targetId)?.classList.remove('hidden');
                 }
                 
+                // Lógica de Modals (Curso)
                 const searchResult = e.target.closest('.search-suggestion-item');
                 const carouselItem = e.target.closest('.carousel-item');
                 const reportRow = e.target.closest('.report-table-row');
-
                 if (searchResult || carouselItem || reportRow) {
                     e.preventDefault();
                     const target = searchResult || carouselItem || reportRow;
@@ -1482,7 +1618,49 @@
                         if(suggestionsContainer) suggestionsContainer.classList.add('hidden');
                     }
                 }
+
+                // Lógica de Notificações
+                const bellBtn = e.target.closest('#notification-bell-btn');
+                const notificationPanel = document.getElementById('notification-panel');
+                if (bellBtn) {
+                    notificationPanel.classList.toggle('hidden');
+                    if (!notificationPanel.classList.contains('hidden')) {
+                        document.getElementById('tab-nao-lidas').click();
+                    }
+                } else if (!e.target.closest('#notification-container')) {
+                    if (notificationPanel && !notificationPanel.classList.contains('hidden')) {
+                        notificationPanel.classList.add('hidden');
+                    }
+                }
+                const notificationItem = e.target.closest('.notification-item.unread');
+                if (notificationItem) {
+                    const id = notificationItem.dataset.id;
+                    readNotificationIds.add(id);
+                    saveReadNotifications();
+                    renderNotifications();
+                }
+                const markAllReadBtn = e.target.closest('#mark-all-read-btn');
+                if (markAllReadBtn) {
+                    allNotifications.forEach(n => readNotificationIds.add(n.id));
+                    saveReadNotifications();
+                    renderNotifications();
+                    document.getElementById('tab-lidas').click();
+                }
+                 const notificationTab = e.target.closest('.notification-tab');
+                if (notificationTab) {
+                    document.querySelectorAll('.notification-tab').forEach(tab => {
+                        tab.classList.remove('active', 'text-green-700', 'border-green-700');
+                        tab.classList.add('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+                    });
+                    notificationTab.classList.add('active', 'text-green-700', 'border-green-700');
+                    notificationTab.classList.remove('text-gray-500', 'border-transparent', 'hover:text-gray-700', 'hover:border-gray-300');
+
+                    const isUnreadTab = notificationTab.id === 'tab-nao-lidas';
+                    document.getElementById('notification-list-unread').classList.toggle('hidden', !isUnreadTab);
+                    document.getElementById('notification-list-read').classList.toggle('hidden', isUnreadTab);
+                }
                 
+                // Lógica de Filtros e Ordenação
                 const sortHeader = e.target.closest('.sortable-header');
                 if(sortHeader) {
                     const key = sortHeader.dataset.sort;
@@ -1495,12 +1673,10 @@
                     populateFilterModal();
                     document.getElementById('filter-modal').classList.remove('hidden');
                 }
-                if (e.target.closest('#apply-filters-btn')) {
-                    applyFilters();
-                }
-                if (e.target.closest('#clear-filters-btn')) {
-                    clearFilters();
-                }
+                if (e.target.closest('#apply-filters-btn')) { applyFilters(); }
+                if (e.target.closest('#clear-filters-btn')) { clearFilters(); }
+
+                // Lógica do Calendário
                  if (e.target.closest('#header-calendar-btn')) {
                     document.getElementById('calendar-modal').classList.remove('hidden');
                     setTimeout(() => {
@@ -1508,14 +1684,11 @@
                         initializeFullCalendar();
                     }, 0);
                 }
-
                 if (e.target.closest('#calendar-filter-btn')) {
                     document.getElementById('calendar-filters-container').classList.toggle('hidden');
                     setTimeout(() => {
-                       if (fullCalendarInstance) {
-                           fullCalendarInstance.updateSize();
-                       }
-                    }, 310); // After CSS transition
+                       if (fullCalendarInstance) { fullCalendarInstance.updateSize(); }
+                    }, 310);
                 }
                 
                 const tecnicoBtn = e.target.closest('.tecnico-filter-btn');
@@ -1656,6 +1829,10 @@
                         allEvents: allEvents
                     };
                     
+                    // Processa notificações
+                    allNotifications = apiResponse.notificacoes || [];
+                    lastDataTimestamp = apiResponse.gerado_em; // Guarda o timestamp dos dados atuais
+                    
                     selectedYear = year;
                     updateDashboardView();
                 } catch (error) {
@@ -1667,7 +1844,7 @@
             
             async function initializeDashboard() {
                  try {
-                    // Fetch 'all' data silently to populate the years list.
+                    // Busca os dados 'gerais' para popular a lista de anos
                     const response = await fetch(API_BASE_URL);
                     if (response.ok) {
                         const apiResponse = await response.json();
@@ -1675,10 +1852,12 @@
                             anoDisponivel: c.anoDisponivel
                         }));
                     }
-                    // Then, proceed with the normal fetch for the selected year.
+                    // Continua com a busca normal para o ano selecionado.
                     await fetchAndRenderData(selectedYear);
+                    // Inicia o timer para verificar atualizações
+                    setupReloadTimer();
                  } catch (error) {
-                     console.error("Failed to initialize dashboard:", error);
+                     console.error("Falha ao inicializar o dashboard:", error);
                      const errorContainer = document.getElementById('inicio') || document.body;
                     errorContainer.innerHTML = `<div class="m-6 p-4 text-red-700 bg-red-100 rounded-lg"><strong>Erro ao inicializar o dashboard.</strong><br>${error.message}</div>`;
                  }
