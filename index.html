@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
-    <!-- Biblioteca para exportar para Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* Estilos Globais */
@@ -368,7 +367,7 @@
         .notification-item {
             padding: 0.75rem 1rem;
             border-bottom: 1px solid #e5e7eb;
-            transition: background-color: 0.2s;
+            transition: background-color 0.2s;
         }
         .notification-item:hover {
             background-color: #f9fafb;
@@ -596,6 +595,28 @@
                 }
                 console.warn(`Não foi possível analisar o formato da data: "${dateInput}"`);
                 return null;
+            }
+
+            // *** NOVA FUNÇÃO *** Lógica centralizada para cálculo do indicador
+            function calculateDisplayIndicator(course) {
+                const today = new Date();
+                today.setUTCHours(0, 0, 0, 0);
+
+                const dataDisp = parseDate(course.dataDisponivel);
+                if (!dataDisp) {
+                    return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
+                }
+
+                const monthDiff = (dataDisp.getFullYear() - today.getFullYear()) * 12 + (dataDisp.getMonth() - today.getMonth());
+
+                if (monthDiff >= 6) {
+                    return 0.8;
+                } else if (monthDiff >= 4 && monthDiff < 6) {
+                    const currentIndicator = (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : 0;
+                    return Math.max(currentIndicator, 0.4);
+                } else { // Menos de 4 meses
+                    return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
+                }
             }
 
             function getEventColorByPedagogo(pedagogo, type) {
@@ -1183,26 +1204,8 @@
             function renderRelatorios(indicadores, cursos) {
                 const container = document.getElementById('relatorio');
 
-                const today = new Date();
-                today.setUTCHours(0, 0, 0, 0);
-
-                const kpiValues = cursos.map(course => {
-                    const dataDisp = parseDate(course.dataDisponivel);
-                    if (!dataDisp) {
-                        return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
-                    }
-
-                    const monthDiff = (dataDisp.getFullYear() - today.getFullYear()) * 12 + (dataDisp.getMonth() - today.getMonth());
-
-                    if (monthDiff >= 6) {
-                        return 0.8;
-                    } else if (monthDiff >= 4 && monthDiff < 6) {
-                        const currentIndicator = (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : 0;
-                        return Math.max(currentIndicator, 0.4);
-                    } else { // Less than 4 months
-                        return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
-                    }
-                }).filter(val => val !== null);
+                // *** ALTERAÇÃO *** Usa a nova função para calcular o KPI
+                const kpiValues = cursos.map(course => calculateDisplayIndicator(course)).filter(val => val !== null);
 
                 let kpiValue = 0;
                 if (kpiValues.length > 0) {
@@ -1213,28 +1216,28 @@
                  container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
                      <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
-                        <div class="flex-shrink-0 grid grid-cols-6 gap-6">
-                            <div class="col-span-5 flex flex-col gap-6">
-                                ${generateRelatorioCardsHTML(indicadores)}
-                                ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
-                            </div>
-                             <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
-                                <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
-                                ${generateKpiGauge(kpiValue)}
-                            </div>
-                        </div>
-                        <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0">
-                           <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                         <div class="flex-shrink-0 grid grid-cols-6 gap-6">
+                             <div class="col-span-5 flex flex-col gap-6">
+                                 ${generateRelatorioCardsHTML(indicadores)}
+                                 ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
+                             </div>
+                              <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
+                                 <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
+                                 ${generateKpiGauge(kpiValue)}
+                             </div>
+                         </div>
+                         <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0">
+                            <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
                                 <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
                                 <div class="flex items-center gap-2">
                                     <button id="export-excel-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500" title="Exportar para Excel">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 9.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 7.414V13a1 1 0 11-2 0V7.414L7.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 9.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 7.414V13a1 1 0 11-2 0V7.414L7.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                                         </svg>
                                     </button>
                                     <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
                                         </svg>
                                     </button>
                                 </div>
@@ -1298,20 +1301,20 @@
                 }).join('');
 
                 return `
-                           <table class="min-w-full divide-y divide-gray-200">
-                               <thead class="bg-gray-50 sticky top-0 z-10">
-                                   <tr>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
-                                   </tr>
-                               </thead>
-                               <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
-                           </table>
+                              <table class="min-w-full divide-y divide-gray-200">
+                                   <thead class="bg-gray-50 sticky top-0 z-10">
+                                      <tr>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
+                              </table>
                 `;
             }
 
@@ -1497,7 +1500,7 @@
                 container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
                      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow p-6 main-content-area min-h-0">
-                        ${cardsHTML}
+                         ${cardsHTML}
                      </div>
                 `;
             }
@@ -1635,9 +1638,16 @@
                         .map(id => dashboardData.fullCronograma.find(c => c.id === id))
                         .filter(Boolean);
 
-                    if (coursesForKpi.length > 0) {
-                        const kpiSum = coursesForKpi.reduce((sum, c) => sum + (c.indicadorReal || 0), 0);
-                        stats.kpi = (kpiSum / coursesForKpi.length) * 100;
+                    // *** ALTERAÇÃO APLICADA AQUI ***
+                    // Mapeia os cursos para seus valores de indicador com tratamento
+                    const kpiValues = coursesForKpi
+                        .map(course => calculateDisplayIndicator(course))
+                        .filter(val => val !== null); // Garante que apenas valores válidos sejam usados
+
+                    if (kpiValues.length > 0) {
+                        // Calcula a média com base nos valores tratados
+                        const kpiSum = kpiValues.reduce((sum, val) => sum + val, 0);
+                        stats.kpi = (kpiSum / kpiValues.length) * 100;
                     } else {
                         stats.kpi = 0;
                     }
@@ -1680,13 +1690,16 @@
                 const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
                 if (!course) return;
                 
-                const percentual = course.indicadorReal ? `${(course.indicadorReal * 100).toFixed(0)}%` : '';
+                // *** ALTERAÇÃO *** Usa a nova função para o modal
+                const displayIndicator = calculateDisplayIndicator(course);
+                const percentual = displayIndicator !== null ? `${(displayIndicator * 100).toFixed(0)}%` : 'N/D';
+                const percentageValue = displayIndicator !== null ? displayIndicator * 100 : -1;
+                
                 const dateObj = parseDate(course.dataDisponivel);
                 const dataEntrega = dateObj ? dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
                 const formattedEntrega = dataEntrega !== 'N/D' ? dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1) : 'N/D';
 
                 const modalHeader = document.querySelector('#course-modal .modal-header');
-                const percentageValue = course.indicadorReal ? course.indicadorReal * 100 : -1;
                 let headerColor = '#6b7280'; 
                 if (percentageValue >= 0 && percentageValue <= 5) headerColor = '#6b7280';
                 else if (percentageValue >= 6 && percentageValue <= 15) headerColor = '#ef4444';
@@ -1698,7 +1711,7 @@
                 document.getElementById('modal-course-name').innerHTML = `
                     <span class="text-xl font-bold">${course.nome}</span>
                     <div class="flex items-center gap-4 ml-auto text-sm">
-                        ${percentual ? `<span class="font-normal bg-white/20 px-2 py-1 rounded-md">Indicador: ${percentual}</span>` : ''}
+                        ${percentual !== 'N/D' ? `<span class="font-normal bg-white/20 px-2 py-1 rounded-md">Indicador: ${percentual}</span>` : ''}
                         <span class="font-normal bg-white/20 px-2 py-1 rounded-md">Entrega: ${formattedEntrega}</span>
                     </div>
                 `;
@@ -1891,7 +1904,7 @@
                     }
                 } else if (!e.target.closest('#notification-container')) {
                      document.querySelectorAll('#notification-panel').forEach(panel => {
-                        panel.classList.add('hidden');
+                         panel.classList.add('hidden');
                      });
                 }
 
