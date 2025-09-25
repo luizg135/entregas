@@ -8,6 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* Estilos Globais */
         html, body {
@@ -65,7 +66,7 @@
             text-decoration: none;
             padding: 12px;
             border-radius: 8px;
-            transition: background-color 0.2s, color 0.2s;
+            transition: background-color: 0.2s, color: 0.2s;
         }
 
         #side-menu a:hover {
@@ -194,6 +195,9 @@
             display: flex;
             flex-direction: column;
         }
+        #other-activities-modal .modal-content {
+             width: 35rem;
+        }
         .modal-header {
             padding: 1rem 1.5rem;
             display: flex;
@@ -271,7 +275,7 @@
         #calendar-modal .modal-content { 
             width: 95vw; 
             max-width: 1400px; 
-            height: 90vh; 
+            height: 85vh; /* Altura reduzida para o modal caber melhor na tela */
         }
         #calendar-modal-body {
             display: flex;
@@ -378,8 +382,7 @@
         .notification-item:last-child {
             border-bottom: none;
         }
-        /* --- Ajuste de altura para os gráficos na TV --- */
-        .chart-row-compact {
+                .chart-row-compact {
             height: 45vh; /* Define a altura da linha dos gráficos para 45% da altura da tela */
             min-height: 350px; /* Garante uma altura mínima para telas menores */
         }
@@ -460,13 +463,23 @@
             </div>
         </div>
     </div>
+    
+    <div id="other-activities-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="other-activities-modal-title" class="text-xl font-bold text-white">Outras Atividades</h2>
+                <button id="other-activities-close-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div id="other-activities-modal-list" class="modal-body"></div>
+        </div>
+    </div>
 
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const API_BASE_URL = 'https://entregas-api.vercel.app/api/dados2';
             let dashboardData = null;
-            let allCoursesForYearSelector = []; // Holds all courses just for the year selector
+            let allCoursesForYearSelector = [];
             let selectedYear = new Date().getFullYear().toString();
             let charts = {};
             let carouselInterval;
@@ -477,6 +490,7 @@
             let allNotifications = [];
             let readNotificationIds = new Set();
             let lastDataTimestamp = null;
+            let currentFilteredCourses = []; // Armazena os dados atualmente visíveis para exportação
 
             // --- FUNÇÕES DE NOTIFICAÇÃO ---
             function getReadNotifications() {
@@ -495,9 +509,8 @@
 
             function renderNotifications() {
                 const activeTab = document.querySelector('.content-section:not(.hidden)');
-                if (!activeTab) return; // Se nenhuma aba estiver ativa, não faz nada
+                if (!activeTab) return; 
 
-                // Seleciona os elementos de notificação DENTRO da aba ativa
                 const listUnreadContainer = activeTab.querySelector('#notification-list-unread');
                 const listReadContainer = activeTab.querySelector('#notification-list-read');
                 const counter = activeTab.querySelector('#notification-counter');
@@ -510,7 +523,6 @@
 
                 const unreadCount = unreadNotifications.length;
 
-                // Atualiza o contador
                 if (unreadCount > 0) {
                     counter.textContent = unreadCount > 9 ? '9+' : unreadCount;
                     counter.classList.remove('hidden');
@@ -518,7 +530,6 @@
                     counter.classList.add('hidden');
                 }
 
-                // Renderiza a lista de não lidas
                 if (unreadNotifications.length === 0) {
                     listUnreadContainer.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma notificação nova.</p>';
                 } else {
@@ -529,7 +540,6 @@
                     `).join('');
                 }
 
-                // Renderiza a lista de lidas
                 if (readNotifications.length === 0) {
                     listReadContainer.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma notificação lida.</p>';
                 } else {
@@ -551,8 +561,6 @@
 
                         const latestData = await response.json();
                         const newTimestamp = latestData.gerado_em;
-
-                        console.log(`Verificando atualizações... Atual: ${lastDataTimestamp}, Mais recente: ${newTimestamp}`);
 
                         if (lastDataTimestamp && newTimestamp && lastDataTimestamp !== newTimestamp) {
                             console.log("Novos dados encontrados. Recarregando a página.");
@@ -593,6 +601,28 @@
                 return null;
             }
 
+            // *** NOVA FUNÇÃO *** Lógica centralizada para cálculo do indicador
+            function calculateDisplayIndicator(course) {
+                const today = new Date();
+                today.setUTCHours(0, 0, 0, 0);
+
+                const dataDisp = parseDate(course.dataDisponivel);
+                if (!dataDisp) {
+                    return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
+                }
+
+                const monthDiff = (dataDisp.getFullYear() - today.getFullYear()) * 12 + (dataDisp.getMonth() - today.getMonth());
+
+                if (monthDiff >= 6) {
+                    return 0.8;
+                } else if (monthDiff >= 4 && monthDiff < 6) {
+                    const currentIndicator = (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : 0;
+                    return Math.max(currentIndicator, 0.4);
+                } else { // Menos de 4 meses
+                    return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
+                }
+            }
+
             function getEventColorByPedagogo(pedagogo, type) {
                 const name = pedagogo ? String(pedagogo).toLowerCase() : 'n/d';
 
@@ -610,6 +640,14 @@
             function capitalizeFirstLetter(string) {
                 if (!string) return '';
                 return string.charAt(0).toUpperCase() + string.slice(1);
+            }
+
+            function getIndicatorColorClass(percentage) {
+                if (percentage >= 0 && percentage <= 5) return 'bg-gray-500';
+                if (percentage >= 6 && percentage <= 15) return 'bg-red-500';
+                if (percentage >= 16 && percentage <= 30) return 'bg-orange-500';
+                if (percentage >= 31 && percentage <= 70) return 'bg-lime-500';
+                return 'bg-green-700';
             }
 
             function processAndUnifyEvents(apiData) {
@@ -724,7 +762,6 @@
             
                 const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
             
-                // Aplicar cores
                 uniqueEvents.forEach(event => {
                     event.color = getEventColorByPedagogo(event.extendedProps.pedagogo, event.extendedProps.eventType);
                     if (event.end) {
@@ -738,8 +775,48 @@
             }
 
 
+            // --- FUNÇÃO DE EXPORTAÇÃO ---
+            function exportTableToExcel() {
+                if (!currentFilteredCourses || currentFilteredCourses.length === 0) {
+                    return;
+                }
+
+                const dataToExport = currentFilteredCourses.map(curso => {
+                    const dataDisponivel = parseDate(curso.dataDisponivel);
+                    let trimestre = 'N/D';
+                    if (dataDisponivel) {
+                        const quarter = Math.floor(dataDisponivel.getUTCMonth() / 3) + 1;
+                        trimestre = `${quarter}º Trimestre`;
+                    }
+
+                    return {
+                        'Indicador': `${(curso.indicadorReal * 100).toFixed(0)}%`,
+                        'Nome do curso': curso.nome,
+                        'Nível': curso.nivel || 'N/D',
+                        'Tipo': curso.tipo || 'N/D',
+                        'Técnico Responsável': curso.tecnico || 'N/D',
+                        'Pedagogo Responsável': curso.pedagogo || 'N/D',
+                        'Data de Disponibilidade a Campo': dataDisponivel ? dataDisponivel.toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/D',
+                        'Trimestre de Disponibilidade a Campo': trimestre,
+                        'Etapa Atual': curso.etapaAtual || 'N/D'
+                    };
+                });
+
+                const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Cursos");
+
+                const columnWidths = [
+                    { wch: 12 }, { wch: 50 }, { wch: 20 }, { wch: 15 },
+                    { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 25 }, { wch: 40 }
+                ];
+                worksheet["!cols"] = columnWidths;
+
+                XLSX.writeFile(workbook, "Relatorio_Cursos.xlsx");
+            }
+
+
             // --- FUNÇÕES DE RENDERIZAÇÃO ---
-            
             function generateHeaderHTML(currentYear) {
                 const years = [...new Set(allCoursesForYearSelector.map(c => c.anoDisponivel).filter(y => y))].sort((a, b) => b - a);
                 let yearOptions = '<option value="all">Geral</option>';
@@ -893,7 +970,7 @@
                             <div class="bg-white p-4 rounded-lg border border-gray-200 relative h-full"><canvas id="nivelChart"></canvas></div>
                         </div>
                         <div>
-                        <div class="flex-shrink-0 pb-4">
+                        <div class="flex-shrink-0">
                             ${generateCarouselHTML(proximosLancamentos)}
                         </div>
                     </div>
@@ -1132,26 +1209,8 @@
             function renderRelatorios(indicadores, cursos) {
                 const container = document.getElementById('relatorio');
 
-                const today = new Date();
-                today.setUTCHours(0, 0, 0, 0);
-
-                const kpiValues = cursos.map(course => {
-                    const dataDisp = parseDate(course.dataDisponivel);
-                    if (!dataDisp) {
-                        return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
-                    }
-
-                    const monthDiff = (dataDisp.getFullYear() - today.getFullYear()) * 12 + (dataDisp.getMonth() - today.getMonth());
-
-                    if (monthDiff >= 6) {
-                        return 0.8;
-                    } else if (monthDiff >= 4 && monthDiff < 6) {
-                        const currentIndicator = (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : 0;
-                        return Math.max(currentIndicator, 0.4);
-                    } else { // Less than 4 months
-                        return (typeof course.indicadorReal === 'number' && !isNaN(course.indicadorReal)) ? course.indicadorReal : null;
-                    }
-                }).filter(val => val !== null);
+                // *** ALTERAÇÃO *** Usa a nova função para calcular o KPI
+                const kpiValues = cursos.map(course => calculateDisplayIndicator(course)).filter(val => val !== null);
 
                 let kpiValue = 0;
                 if (kpiValues.length > 0) {
@@ -1162,24 +1221,31 @@
                  container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
                      <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
-                        <div class="flex-shrink-0 grid grid-cols-6 gap-6">
-                            <div class="col-span-5 flex flex-col gap-6">
-                                ${generateRelatorioCardsHTML(indicadores)}
-                                ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
-                            </div>
-                             <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
-                                <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
-                                ${generateKpiGauge(kpiValue)}
-                            </div>
-                        </div>
-                        <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0 mb-10">
-                           <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
+                         <div class="flex-shrink-0 grid grid-cols-6 gap-6">
+                             <div class="col-span-5 flex flex-col gap-6">
+                                 ${generateRelatorioCardsHTML(indicadores)}
+                                 ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
+                             </div>
+                              <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
+                                 <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
+                                 ${generateKpiGauge(kpiValue)}
+                             </div>
+                         </div>
+                         <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0 mb-10">
+                            <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
                                 <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
-                                <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button id="export-excel-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500" title="Exportar para Excel">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 9.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 7.414V13a1 1 0 11-2 0V7.414L7.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                             <div class="overflow-y-auto table-container">
                                 ${generateRelatorioTableHTML(cursos)}
@@ -1215,14 +1281,6 @@
                     </div>
                 `;
             }
-            
-            function getIndicatorColorClass(percentage) {
-                if (percentage >= 0 && percentage <= 5) return 'bg-gray-500';
-                if (percentage >= 6 && percentage <= 15) return 'bg-red-500';
-                if (percentage >= 16 && percentage <= 30) return 'bg-orange-500';
-                if (percentage >= 31 && percentage <= 70) return 'bg-lime-500';
-                return 'bg-green-700';
-            }
 
             function generateRelatorioTableHTML(cursos) {
                 const getSortIndicator = (key) => {
@@ -1248,25 +1306,24 @@
                 }).join('');
 
                 return `
-                           <table class="min-w-full divide-y divide-gray-200">
-                               <thead class="bg-gray-50 sticky top-0 z-10">
-                                   <tr>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
-                                       <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
-                                   </tr>
-                               </thead>
-                               <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
-                           </table>
+                              <table class="min-w-full divide-y divide-gray-200">
+                                   <thead class="bg-gray-50 sticky top-0 z-10">
+                                      <tr>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
+                                          <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
+                              </table>
                 `;
             }
 
             // --- FUNÇÃO DO KPI ---
-
             function generateKpiGauge(percentage) {
                 const rotation = (percentage / 100) * 180 - 90;
                 const color = percentage < 30 ? '#ef4444' : percentage < 70 ? '#f59e0b' : '#22c55e';
@@ -1319,7 +1376,6 @@
 
                 let eventsToRender = dashboardData.allEvents;
 
-                // Apply calendar filters
                 const activeTecnicos = calendarFilters.tecnico;
                 const activePedagogos = calendarFilters.pedagogo;
 
@@ -1371,14 +1427,89 @@
                 fullCalendarInstance.render();
             }
 
-            function renderPedagogos() {
-                document.getElementById('pedagogos').innerHTML = `
+            // --- ABA PEDAGOGOS - NOVAS FUNÇÕES ---
+            function renderPedagogos(pedagogoStats) {
+                const container = document.getElementById('pedagogos');
+                if (!pedagogoStats) {
+                    container.innerHTML = `${generateHeaderHTML(selectedYear)}<div class="p-6">Carregando dados...</div>`;
+                    return;
+                }
+
+                const cardsHTML = Object.entries(pedagogoStats).map(([nome, stats]) => {
+                    const kpiColorClass = getIndicatorColorClass(stats.kpi);
+                    const totalOtherActivities = Object.values(stats.otherActivities).reduce((sum, count) => sum + count, 0);
+
+                    const proximosEventosHTML = stats.futureEvents
+                        .map(evento => `
+                            <li class="hover:bg-gray-100 p-1 rounded cursor-pointer pedagogo-acompanhamento-item" data-course-name="${evento.cursoNome}" data-course-level="${evento.cursoNivel}">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="truncate pr-2" title="${evento.cursoNome}">${evento.tipo}: ${evento.cursoNome}</span>
+                                    <span class="font-semibold flex-shrink-0">${evento.data.toLocaleDateString('pt-BR', { month: 'short', day: '2-digit' })}</span>
+                                </div>
+                            </li>
+                        `).join('');
+
+                    const outrasAtividadesHTML = Object.entries(stats.otherActivities)
+                        .map(([tipo, count]) => `
+                            <li class="other-activity-item cursor-pointer hover:bg-gray-100 p-1 rounded" data-pedagogo="${nome}" data-activity-type="${tipo}">
+                                <div class="flex justify-between items-center text-xs">
+                                     <span>${count}x ${tipo}</span>
+                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                </div>
+                            </li>
+                        `)
+                        .join('');
+
+                    return `
+                        <div class="bg-white rounded-lg border border-gray-200 flex flex-col">
+                            <div class="p-4 border-b">
+                                <h3 class="font-bold text-xl text-gray-800 text-center">${nome}</h3>
+                                <div class="my-4">
+                                    <p class="text-xs text-gray-500 text-center mb-1">Indicador</p>
+                                    <div class="w-full bg-gray-200 rounded-full h-5">
+                                        <div class="h-5 rounded-full ${kpiColorClass} text-white text-xs flex items-center justify-center font-bold" style="width: ${stats.kpi.toFixed(0)}%;">
+                                            ${stats.kpi.toFixed(0)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-around text-center">
+                                    <div>
+                                        <p class="text-2xl font-bold text-gray-700">${stats.pilotos}</p>
+                                        <p class="text-xs text-gray-500">Pilotos</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-2xl font-bold text-gray-700">${stats.formacoes}</p>
+                                        <p class="text-xs text-gray-500">Formações</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-4 flex-grow">
+                                <h4 class="text-sm font-semibold text-gray-600 mb-2">Próximos Acompanhamentos</h4>
+                                <ul class="space-y-1 text-gray-700">
+                                    ${proximosEventosHTML || '<li class="text-xs text-gray-400">Nenhum acompanhamento futuro.</li>'}
+                                </ul>
+                            </div>
+                            <div class="p-4 border-t">
+                                <h4 class="text-sm font-semibold text-gray-600 mb-2 flex justify-between items-center">
+                                    <span>Outras Atividades</span>
+                                    <span class="text-xs font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">${totalOtherActivities}</span>
+                                </h4>
+                                <ul class="space-y-1 text-gray-700">
+                                    ${outrasAtividadesHTML || '<li class="text-xs text-gray-400">Nenhuma outra atividade.</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
-                     <div class="flex-grow p-6 main-content-area">
-                         </div>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow p-6 main-content-area min-h-0">
+                         ${cardsHTML}
+                     </div>
                 `;
             }
-            
+
             function updateDashboardView() {
                 if (!dashboardData) return;
             
@@ -1419,6 +1550,8 @@
                     return (valA - valB) * direction;
                 });
             
+                currentFilteredCourses = filteredCourses;
+
                 const indicadoresInicio = {
                     meta_entregas: indicadores.metaEntregas,
                     totalNovos: indicadores.novos ? indicadores.novos.total : 0,
@@ -1441,12 +1574,99 @@
                     entregues: entreguesCount,
                     restante: filteredCourses.length - entreguesCount
                 };
-            
+
+                // --- Processamento de dados para a ABA DE PEDAGOGOS ---
+                const pedagogosPrincipais = ["Josimeri Grein", "Enderson Lopes", "Leandro Prado"];
+                const pedagogoStats = {};
+                const hoje = new Date();
+                hoje.setUTCHours(0, 0, 0, 0);
+
+                pedagogosPrincipais.forEach(p => {
+                    pedagogoStats[p] = {
+                        pilotos: 0,
+                        formacoes: 0,
+                        associatedCourseIds: new Set(),
+                        futureEvents: [],
+                        otherActivities: {}
+                    };
+                });
+                
+                const coursesForStats = (selectedYear === 'all')
+                    ? dashboardData.fullCronograma
+                    : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
+
+                coursesForStats.forEach(curso => {
+                    const addCourseToPedagogo = (pedagogoNome) => {
+                        if (pedagogosPrincipais.includes(pedagogoNome)) {
+                            pedagogoStats[pedagogoNome].associatedCourseIds.add(curso.id);
+                        }
+                    };
+
+                    if(curso.pedagogo) {
+                       addCourseToPedagogo(curso.pedagogo);
+                    }
+
+                    curso.eventosAssociados.forEach(evento => {
+                        if (pedagogosPrincipais.includes(evento.pedagogo)) {
+                            const stats = pedagogoStats[evento.pedagogo];
+                            if (evento.tipo === 'Piloto') stats.pilotos++;
+                            if (evento.tipo === 'Formação') stats.formacoes++;
+                            
+                            addCourseToPedagogo(evento.pedagogo);
+
+                            const eventDate = parseDate(evento.inicio);
+                            if (eventDate >= hoje) {
+                                stats.futureEvents.push({
+                                    data: eventDate,
+                                    tipo: evento.tipo,
+                                    cursoNome: curso.nome,
+                                    cursoNivel: curso.nivel
+                                });
+                            }
+                        }
+                    });
+                });
+                
+                const atividadesExtrasPedagogos = (selectedYear === 'all' 
+                    ? dashboardData.atividadesExtras?.pedagogos 
+                    : dashboardData.atividadesExtras?.pedagogos.filter(a => a.ano === parseInt(selectedYear))) || [];
+
+                atividadesExtrasPedagogos.forEach(atividade => {
+                    if (pedagogosPrincipais.includes(atividade.responsavel)) {
+                        const stats = pedagogoStats[atividade.responsavel].otherActivities;
+                        stats[atividade.tipo] = (stats[atividade.tipo] || 0) + 1;
+                    }
+                });
+
+                Object.entries(pedagogoStats).forEach(([nome, stats]) => {
+                    const coursesForKpi = Array.from(stats.associatedCourseIds)
+                        .map(id => dashboardData.fullCronograma.find(c => c.id === id))
+                        .filter(Boolean);
+
+                    // *** ALTERAÇÃO APLICADA AQUI ***
+                    // Mapeia os cursos para seus valores de indicador com tratamento
+                    const kpiValues = coursesForKpi
+                        .map(course => calculateDisplayIndicator(course))
+                        .filter(val => val !== null); // Garante que apenas valores válidos sejam usados
+
+                    if (kpiValues.length > 0) {
+                        // Calcula a média com base nos valores tratados
+                        const kpiSum = kpiValues.reduce((sum, val) => sum + val, 0);
+                        stats.kpi = (kpiSum / kpiValues.length) * 100;
+                    } else {
+                        stats.kpi = 0;
+                    }
+
+                    stats.futureEvents.sort((a, b) => a.data - b.data);
+                    stats.futureEvents = stats.futureEvents.slice(0, 5);
+                });
+
+
                 const proximosLancamentos = visaoGeral.proximosLancamentos || [];
             
                 renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
                 renderRelatorios(indicadoresRelatorio, filteredCourses);
-                renderPedagogos();
+                renderPedagogos(pedagogoStats);
             
                 const activeLink = document.querySelector('.menu-link.active');
                 const activeTabId = activeLink ? activeLink.getAttribute('href').substring(1) : 'inicio';
@@ -1460,9 +1680,8 @@
                       filterBtn.classList.toggle('active', isFilterActive);
                 }
 
-                // Chamar renderNotifications aqui garante que os elementos existam no DOM de todas as abas
                 document.querySelectorAll('.content-section').forEach(tab => {
-                    renderNotifications(); // Renderiza para a aba ativa que será encontrada pela função
+                    renderNotifications();
                 });
             }
 
@@ -1476,13 +1695,16 @@
                 const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
                 if (!course) return;
                 
-                const percentual = course.indicadorReal ? `${(course.indicadorReal * 100).toFixed(0)}%` : '';
+                // *** ALTERAÇÃO *** Usa a nova função para o modal
+                const displayIndicator = calculateDisplayIndicator(course);
+                const percentual = displayIndicator !== null ? `${(displayIndicator * 100).toFixed(0)}%` : 'N/D';
+                const percentageValue = displayIndicator !== null ? displayIndicator * 100 : -1;
+                
                 const dateObj = parseDate(course.dataDisponivel);
                 const dataEntrega = dateObj ? dateObj.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : 'N/D';
                 const formattedEntrega = dataEntrega !== 'N/D' ? dataEntrega.charAt(0).toUpperCase() + dataEntrega.slice(1) : 'N/D';
 
                 const modalHeader = document.querySelector('#course-modal .modal-header');
-                const percentageValue = course.indicadorReal ? course.indicadorReal * 100 : -1;
                 let headerColor = '#6b7280'; 
                 if (percentageValue >= 0 && percentageValue <= 5) headerColor = '#6b7280';
                 else if (percentageValue >= 6 && percentageValue <= 15) headerColor = '#ef4444';
@@ -1494,7 +1716,7 @@
                 document.getElementById('modal-course-name').innerHTML = `
                     <span class="text-xl font-bold">${course.nome}</span>
                     <div class="flex items-center gap-4 ml-auto text-sm">
-                        ${percentual ? `<span class="font-normal bg-white/20 px-2 py-1 rounded-md">Indicador: ${percentual}</span>` : ''}
+                        ${percentual !== 'N/D' ? `<span class="font-normal bg-white/20 px-2 py-1 rounded-md">Indicador: ${percentual}</span>` : ''}
                         <span class="font-normal bg-white/20 px-2 py-1 rounded-md">Entrega: ${formattedEntrega}</span>
                     </div>
                 `;
@@ -1565,16 +1787,47 @@
                 
                 document.getElementById('course-modal').classList.remove('hidden');
             }
+            
+            function openOtherActivitiesModal(pedagogoName, activityType) {
+                const modal = document.getElementById('other-activities-modal');
+                const titleEl = document.getElementById('other-activities-modal-title');
+                const listEl = document.getElementById('other-activities-modal-list');
+                if (!modal || !titleEl || !listEl) return;
 
-            document.getElementById('modal-close-btn').addEventListener('click', () => {
-                document.getElementById('course-modal').classList.add('hidden');
-            });
-            document.getElementById('filter-close-btn').addEventListener('click', () => {
-                document.getElementById('filter-modal').classList.add('hidden');
-            });
-            document.getElementById('calendar-close-btn').addEventListener('click', () => {
-                document.getElementById('calendar-modal').classList.add('hidden');
-            });
+                titleEl.textContent = `${activityType} de ${pedagogoName}`;
+
+                const activities = dashboardData.atividadesExtras?.pedagogos.filter(
+                    a => a.responsavel === pedagogoName && a.tipo === activityType
+                ) || [];
+                
+                if (activities.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-center">Nenhuma atividade encontrada.</p>';
+                } else {
+                    listEl.innerHTML = '<ul class="space-y-3">' + activities.map(a => {
+                        const startDate = parseDate(a.inicio);
+                        const endDate = parseDate(a.fim);
+                        let dateString = 'Data não informada';
+                        if (startDate) {
+                            const startDateStr = startDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                            if (endDate && startDate.getTime() !== endDate.getTime()) {
+                                const endDateStr = endDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                                dateString = `${startDateStr} a ${endDateStr}`;
+                            } else {
+                                dateString = startDateStr;
+                            }
+                        }
+                        return `<li class="text-sm border-b pb-2"><span class="font-semibold text-gray-800">${a.tema}</span><br><span class="text-xs text-gray-500">${dateString}</span></li>`;
+                    }).join('') + '</ul>';
+                }
+
+                modal.classList.remove('hidden');
+            }
+
+            document.getElementById('modal-close-btn').addEventListener('click', () => document.getElementById('course-modal').classList.add('hidden'));
+            document.getElementById('filter-close-btn').addEventListener('click', () => document.getElementById('filter-modal').classList.add('hidden'));
+            document.getElementById('calendar-close-btn').addEventListener('click', () => document.getElementById('calendar-modal').classList.add('hidden'));
+            document.getElementById('other-activities-close-btn').addEventListener('click', () => document.getElementById('other-activities-modal').classList.add('hidden'));
+
 
             document.getElementById('tab-detalhes').addEventListener('click', () => {
                 document.getElementById('tab-detalhes').classList.add('active');
@@ -1591,6 +1844,11 @@
 
 
             document.body.addEventListener('click', function(e) {
+                // Lógica para fechar modais ao clicar fora
+                if (e.target.classList.contains('modal-overlay')) {
+                    e.target.classList.add('hidden');
+                }
+
                 // Lógica de Menus e Abas
                 const menuButton = e.target.closest('.menu-button');
                 if (menuButton) {
@@ -1609,17 +1867,17 @@
                     const targetId = menuLink.getAttribute('href').substring(1);
                     document.querySelectorAll('.content-section').forEach(section => section.classList.add('hidden'));
                     document.getElementById(targetId)?.classList.remove('hidden');
-                    // Re-renderiza as notificações para a aba que se tornou ativa
                     renderNotifications();
                 }
                 
-                // Lógica de Modals (Curso)
+                // Lógica de Modals (Curso e Outras Atividades)
                 const searchResult = e.target.closest('.search-suggestion-item');
                 const carouselItem = e.target.closest('.carousel-item');
                 const reportRow = e.target.closest('.report-table-row');
-                if (searchResult || carouselItem || reportRow) {
+                const pedagogoAcompanhamento = e.target.closest('.pedagogo-acompanhamento-item');
+                if (searchResult || carouselItem || reportRow || pedagogoAcompanhamento) {
                     e.preventDefault();
-                    const target = searchResult || carouselItem || reportRow;
+                    const target = searchResult || carouselItem || reportRow || pedagogoAcompanhamento;
                     const courseName = target.dataset.courseName;
                     const courseLevel = target.dataset.courseLevel;
                     openModal(courseName, courseLevel);
@@ -1631,6 +1889,13 @@
                         if(searchBar) searchBar.value = '';
                         if(suggestionsContainer) suggestionsContainer.classList.add('hidden');
                     }
+                }
+                
+                const otherActivityItem = e.target.closest('.other-activity-item');
+                if (otherActivityItem) {
+                    const pedagogoName = otherActivityItem.dataset.pedagogo;
+                    const activityType = otherActivityItem.dataset.activityType;
+                    openOtherActivitiesModal(pedagogoName, activityType);
                 }
 
                 // Lógica de Notificações
@@ -1644,7 +1909,7 @@
                     }
                 } else if (!e.target.closest('#notification-container')) {
                      document.querySelectorAll('#notification-panel').forEach(panel => {
-                        panel.classList.add('hidden');
+                         panel.classList.add('hidden');
                      });
                 }
 
@@ -1677,7 +1942,7 @@
                     panel.querySelector('#notification-list-read').classList.toggle('hidden', isUnreadTab);
                 }
                 
-                // Lógica de Filtros e Ordenação
+                // Lógica de Filtros, Ordenação e Exportação
                 const sortHeader = e.target.closest('.sortable-header');
                 if(sortHeader) {
                     const key = sortHeader.dataset.sort;
@@ -1690,11 +1955,15 @@
                     populateFilterModal();
                     document.getElementById('filter-modal').classList.remove('hidden');
                 }
+                if (e.target.closest('#export-excel-btn')) {
+                    exportTableToExcel();
+                }
                 if (e.target.closest('#apply-filters-btn')) { applyFilters(); }
                 if (e.target.closest('#clear-filters-btn')) { clearFilters(); }
 
                 // Lógica do Calendário
                  if (e.target.closest('#header-calendar-btn')) {
+                    calendarFilters = { tecnico: [], pedagogo: [] }; // Resetar filtros
                     document.getElementById('calendar-modal').classList.remove('hidden');
                     setTimeout(() => {
                         generateCalendarFiltersHTML();
@@ -1843,12 +2112,12 @@
                         visaoGeral: apiResponse.visaoGeral,
                         cronograma: transformedCronograma,
                         fullCronograma: fullCronograma,
-                        allEvents: allEvents
+                        allEvents: allEvents,
+                        atividadesExtras: apiResponse.atividadesExtras
                     };
                     
-                    // Processa notificações
                     allNotifications = apiResponse.notificacoes || [];
-                    lastDataTimestamp = apiResponse.gerado_em; // Guarda o timestamp dos dados atuais
+                    lastDataTimestamp = apiResponse.gerado_em;
                     
                     selectedYear = year;
                     updateDashboardView();
@@ -1861,7 +2130,6 @@
             
             async function initializeDashboard() {
                  try {
-                    // Busca os dados 'gerais' para popular a lista de anos
                     const response = await fetch(API_BASE_URL);
                     if (response.ok) {
                         const apiResponse = await response.json();
@@ -1869,9 +2137,7 @@
                             anoDisponivel: c.anoDisponivel
                         }));
                     }
-                    // Continua com a busca normal para o ano selecionado.
                     await fetchAndRenderData(selectedYear);
-                    // Inicia o timer para verificar atualizações
                     setupReloadTimer();
                  } catch (error) {
                      console.error("Falha ao inicializar o dashboard:", error);
