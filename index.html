@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js'></script>
+    <!-- Biblioteca para exportar para Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         /* Estilos Globais */
         html, body {
@@ -461,7 +463,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const API_BASE_URL = 'https://entregas-api.vercel.app/api/dados2';
             let dashboardData = null;
-            let allCoursesForYearSelector = []; // Holds all courses just for the year selector
+            let allCoursesForYearSelector = [];
             let selectedYear = new Date().getFullYear().toString();
             let charts = {};
             let carouselInterval;
@@ -472,6 +474,7 @@
             let allNotifications = [];
             let readNotificationIds = new Set();
             let lastDataTimestamp = null;
+            let currentFilteredCourses = []; // Armazena os dados atualmente visíveis para exportação
 
             // --- FUNÇÕES DE NOTIFICAÇÃO ---
             function getReadNotifications() {
@@ -490,9 +493,8 @@
 
             function renderNotifications() {
                 const activeTab = document.querySelector('.content-section:not(.hidden)');
-                if (!activeTab) return; // Se nenhuma aba estiver ativa, não faz nada
+                if (!activeTab) return; 
 
-                // Seleciona os elementos de notificação DENTRO da aba ativa
                 const listUnreadContainer = activeTab.querySelector('#notification-list-unread');
                 const listReadContainer = activeTab.querySelector('#notification-list-read');
                 const counter = activeTab.querySelector('#notification-counter');
@@ -505,7 +507,6 @@
 
                 const unreadCount = unreadNotifications.length;
 
-                // Atualiza o contador
                 if (unreadCount > 0) {
                     counter.textContent = unreadCount > 9 ? '9+' : unreadCount;
                     counter.classList.remove('hidden');
@@ -513,7 +514,6 @@
                     counter.classList.add('hidden');
                 }
 
-                // Renderiza a lista de não lidas
                 if (unreadNotifications.length === 0) {
                     listUnreadContainer.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma notificação nova.</p>';
                 } else {
@@ -524,7 +524,6 @@
                     `).join('');
                 }
 
-                // Renderiza a lista de lidas
                 if (readNotifications.length === 0) {
                     listReadContainer.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma notificação lida.</p>';
                 } else {
@@ -546,8 +545,6 @@
 
                         const latestData = await response.json();
                         const newTimestamp = latestData.gerado_em;
-
-                        console.log(`Verificando atualizações... Atual: ${lastDataTimestamp}, Mais recente: ${newTimestamp}`);
 
                         if (lastDataTimestamp && newTimestamp && lastDataTimestamp !== newTimestamp) {
                             console.log("Novos dados encontrados. Recarregando a página.");
@@ -719,7 +716,6 @@
             
                 const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
             
-                // Aplicar cores
                 uniqueEvents.forEach(event => {
                     event.color = getEventColorByPedagogo(event.extendedProps.pedagogo, event.extendedProps.eventType);
                     if (event.end) {
@@ -733,8 +729,48 @@
             }
 
 
+            // --- FUNÇÃO DE EXPORTAÇÃO ---
+            function exportTableToExcel() {
+                if (!currentFilteredCourses || currentFilteredCourses.length === 0) {
+                    return;
+                }
+
+                const dataToExport = currentFilteredCourses.map(curso => {
+                    const dataDisponivel = parseDate(curso.dataDisponivel);
+                    let trimestre = 'N/D';
+                    if (dataDisponivel) {
+                        const quarter = Math.floor(dataDisponivel.getUTCMonth() / 3) + 1;
+                        trimestre = `${quarter}º Trimestre`;
+                    }
+
+                    return {
+                        'Indicador': `${(curso.indicadorReal * 100).toFixed(0)}%`,
+                        'Nome do curso': curso.nome,
+                        'Nível': curso.nivel || 'N/D',
+                        'Tipo': curso.tipo || 'N/D',
+                        'Técnico Responsável': curso.tecnico || 'N/D',
+                        'Pedagogo Responsável': curso.pedagogo || 'N/D',
+                        'Data de Disponibilidade a Campo': dataDisponivel ? dataDisponivel.toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'N/D',
+                        'Trimestre de Disponibilidade a Campo': trimestre,
+                        'Etapa Atual': curso.etapaAtual || 'N/D'
+                    };
+                });
+
+                const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Cursos");
+
+                const columnWidths = [
+                    { wch: 12 }, { wch: 50 }, { wch: 20 }, { wch: 15 },
+                    { wch: 25 }, { wch: 25 }, { wch: 20 }, { wch: 25 }, { wch: 40 }
+                ];
+                worksheet["!cols"] = columnWidths;
+
+                XLSX.writeFile(workbook, "Relatorio_Cursos.xlsx");
+            }
+
+
             // --- FUNÇÕES DE RENDERIZAÇÃO ---
-            
             function generateHeaderHTML(currentYear) {
                 const years = [...new Set(allCoursesForYearSelector.map(c => c.anoDisponivel).filter(y => y))].sort((a, b) => b - a);
                 let yearOptions = '<option value="all">Geral</option>';
@@ -1169,11 +1205,18 @@
                         <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0">
                            <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
                                 <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
-                                <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                      <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
+                                <div class="flex items-center gap-2">
+                                    <button id="export-excel-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500" title="Exportar para Excel">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 9.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 7.414V13a1 1 0 11-2 0V7.414L7.707 9.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                    <button id="filter-btn" class="p-2 rounded-md hover:bg-gray-100 text-gray-500">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                             <div class="overflow-y-auto table-container">
                                 ${generateRelatorioTableHTML(cursos)}
@@ -1260,7 +1303,6 @@
             }
 
             // --- FUNÇÃO DO KPI ---
-
             function generateKpiGauge(percentage) {
                 const rotation = (percentage / 100) * 180 - 90;
                 const color = percentage < 30 ? '#ef4444' : percentage < 70 ? '#f59e0b' : '#22c55e';
@@ -1313,7 +1355,6 @@
 
                 let eventsToRender = dashboardData.allEvents;
 
-                // Apply calendar filters
                 const activeTecnicos = calendarFilters.tecnico;
                 const activePedagogos = calendarFilters.pedagogo;
 
@@ -1413,6 +1454,8 @@
                     return (valA - valB) * direction;
                 });
             
+                currentFilteredCourses = filteredCourses;
+
                 const indicadoresInicio = {
                     meta_entregas: indicadores.metaEntregas,
                     totalNovos: indicadores.novos ? indicadores.novos.total : 0,
@@ -1454,9 +1497,8 @@
                       filterBtn.classList.toggle('active', isFilterActive);
                 }
 
-                // Chamar renderNotifications aqui garante que os elementos existam no DOM de todas as abas
                 document.querySelectorAll('.content-section').forEach(tab => {
-                    renderNotifications(); // Renderiza para a aba ativa que será encontrada pela função
+                    renderNotifications();
                 });
             }
 
@@ -1585,6 +1627,11 @@
 
 
             document.body.addEventListener('click', function(e) {
+                // Lógica para fechar modais ao clicar fora
+                if (e.target.classList.contains('modal-overlay')) {
+                    e.target.classList.add('hidden');
+                }
+
                 // Lógica de Menus e Abas
                 const menuButton = e.target.closest('.menu-button');
                 if (menuButton) {
@@ -1603,7 +1650,6 @@
                     const targetId = menuLink.getAttribute('href').substring(1);
                     document.querySelectorAll('.content-section').forEach(section => section.classList.add('hidden'));
                     document.getElementById(targetId)?.classList.remove('hidden');
-                    // Re-renderiza as notificações para a aba que se tornou ativa
                     renderNotifications();
                 }
                 
@@ -1671,7 +1717,7 @@
                     panel.querySelector('#notification-list-read').classList.toggle('hidden', isUnreadTab);
                 }
                 
-                // Lógica de Filtros e Ordenação
+                // Lógica de Filtros, Ordenação e Exportação
                 const sortHeader = e.target.closest('.sortable-header');
                 if(sortHeader) {
                     const key = sortHeader.dataset.sort;
@@ -1684,11 +1730,15 @@
                     populateFilterModal();
                     document.getElementById('filter-modal').classList.remove('hidden');
                 }
+                if (e.target.closest('#export-excel-btn')) {
+                    exportTableToExcel();
+                }
                 if (e.target.closest('#apply-filters-btn')) { applyFilters(); }
                 if (e.target.closest('#clear-filters-btn')) { clearFilters(); }
 
                 // Lógica do Calendário
                  if (e.target.closest('#header-calendar-btn')) {
+                    calendarFilters = { tecnico: [], pedagogo: [] }; // Resetar filtros
                     document.getElementById('calendar-modal').classList.remove('hidden');
                     setTimeout(() => {
                         generateCalendarFiltersHTML();
@@ -1840,9 +1890,8 @@
                         allEvents: allEvents
                     };
                     
-                    // Processa notificações
                     allNotifications = apiResponse.notificacoes || [];
-                    lastDataTimestamp = apiResponse.gerado_em; // Guarda o timestamp dos dados atuais
+                    lastDataTimestamp = apiResponse.gerado_em;
                     
                     selectedYear = year;
                     updateDashboardView();
@@ -1855,7 +1904,6 @@
             
             async function initializeDashboard() {
                  try {
-                    // Busca os dados 'gerais' para popular a lista de anos
                     const response = await fetch(API_BASE_URL);
                     if (response.ok) {
                         const apiResponse = await response.json();
@@ -1863,9 +1911,7 @@
                             anoDisponivel: c.anoDisponivel
                         }));
                     }
-                    // Continua com a busca normal para o ano selecionado.
                     await fetchAndRenderData(selectedYear);
-                    // Inicia o timer para verificar atualizações
                     setupReloadTimer();
                  } catch (error) {
                      console.error("Falha ao inicializar o dashboard:", error);
