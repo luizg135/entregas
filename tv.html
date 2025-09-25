@@ -1220,7 +1220,7 @@
 
                  container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
-                     <div class="flex-grow p-6 pb-20 flex flex-col gap-6 main-content-area min-h-0">
+                     <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
                          <div class="flex-shrink-0 grid grid-cols-6 gap-6">
                              <div class="col-span-5 flex flex-col gap-6">
                                  ${generateRelatorioCardsHTML(indicadores)}
@@ -1251,6 +1251,7 @@
                                 ${generateRelatorioTableHTML(cursos)}
                             </div>
                         </div>
+                        <div class="h-20 flex-shrink-0"></div>
                     </div>
                 `;
             }
@@ -1502,12 +1503,16 @@
                     `;
                 }).join('');
 
-                container.innerHTML = `
-                    ${generateHeaderHTML(selectedYear)}
-                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow p-6 pb-20 main-content-area min-h-0">
-                         ${cardsHTML}
-                     </div>
-                `;
+            container.innerHTML = `
+                ${generateHeaderHTML(selectedYear)}
+                 <div class="flex-grow p-6 main-content-area min-h-0">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        ${cardsHTML}
+                    </div>
+                    {/* ADICIONE ESTA LINHA ABAIXO */}
+                    <div class="h-20 flex-shrink-0"></div>
+                 </div>
+            `;
             }
 
             function updateDashboardView() {
