@@ -196,6 +196,9 @@
             display: flex;
             flex-direction: column;
         }
+        #other-activities-modal .modal-content {
+             width: 35rem;
+        }
         .modal-header {
             padding: 1rem 1.5rem;
             display: flex;
@@ -365,7 +368,7 @@
         .notification-item {
             padding: 0.75rem 1rem;
             border-bottom: 1px solid #e5e7eb;
-            transition: background-color 0.2s;
+            transition: background-color: 0.2s;
         }
         .notification-item:hover {
             background-color: #f9fafb;
@@ -455,6 +458,16 @@
                 <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
                      </div>
             </div>
+        </div>
+    </div>
+    
+    <div id="other-activities-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="other-activities-modal-title" class="text-xl font-bold text-white">Outras Atividades</h2>
+                <button id="other-activities-close-btn" class="modal-close-btn">&times;</button>
+            </div>
+            <div id="other-activities-modal-list" class="modal-body"></div>
         </div>
     </div>
 
@@ -602,6 +615,14 @@
             function capitalizeFirstLetter(string) {
                 if (!string) return '';
                 return string.charAt(0).toUpperCase() + string.slice(1);
+            }
+
+            function getIndicatorColorClass(percentage) {
+                if (percentage >= 0 && percentage <= 5) return 'bg-gray-500';
+                if (percentage >= 6 && percentage <= 15) return 'bg-red-500';
+                if (percentage >= 16 && percentage <= 30) return 'bg-orange-500';
+                if (percentage >= 31 && percentage <= 70) return 'bg-lime-500';
+                return 'bg-green-700';
             }
 
             function processAndUnifyEvents(apiData) {
@@ -1252,14 +1273,6 @@
                     </div>
                 `;
             }
-            
-            function getIndicatorColorClass(percentage) {
-                if (percentage >= 0 && percentage <= 5) return 'bg-gray-500';
-                if (percentage >= 6 && percentage <= 15) return 'bg-red-500';
-                if (percentage >= 16 && percentage <= 30) return 'bg-orange-500';
-                if (percentage >= 31 && percentage <= 70) return 'bg-lime-500';
-                return 'bg-green-700';
-            }
 
             function generateRelatorioTableHTML(cursos) {
                 const getSortIndicator = (key) => {
@@ -1406,14 +1419,85 @@
                 fullCalendarInstance.render();
             }
 
-            function renderPedagogos() {
-                document.getElementById('pedagogos').innerHTML = `
+            // --- ABA PEDAGOGOS - NOVAS FUNÇÕES ---
+            function renderPedagogos(pedagogoStats) {
+                const container = document.getElementById('pedagogos');
+                if (!pedagogoStats) {
+                    container.innerHTML = `${generateHeaderHTML(selectedYear)}<div class="p-6">Carregando dados...</div>`;
+                    return;
+                }
+
+                const cardsHTML = Object.entries(pedagogoStats).map(([nome, stats]) => {
+                    const kpiColorClass = getIndicatorColorClass(stats.kpi);
+                    
+                    const proximosEventosHTML = stats.futureEvents
+                        .map(evento => `
+                            <li class="hover:bg-gray-100 p-1 rounded cursor-pointer pedagogo-acompanhamento-item" data-course-name="${evento.cursoNome}" data-course-level="${evento.cursoNivel}">
+                                <div class="flex justify-between items-center text-xs">
+                                    <span class="truncate pr-2" title="${evento.cursoNome}">${evento.tipo}: ${evento.cursoNome}</span>
+                                    <span class="font-semibold flex-shrink-0">${evento.data.toLocaleDateString('pt-BR', { month: 'short', day: '2-digit' })}</span>
+                                </div>
+                            </li>
+                        `).join('');
+
+                    const outrasAtividadesHTML = Object.entries(stats.otherActivities)
+                        .map(([tipo, count]) => `
+                            <li class="other-activity-item cursor-pointer hover:bg-gray-100 p-1 rounded" data-pedagogo="${nome}" data-activity-type="${tipo}">
+                                <div class="flex justify-between items-center text-xs">
+                                     <span>${count}x ${tipo}</span>
+                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                </div>
+                            </li>
+                        `)
+                        .join('');
+
+                    return `
+                        <div class="bg-white rounded-lg border border-gray-200 flex flex-col">
+                            <div class="p-4 border-b">
+                                <h3 class="font-bold text-xl text-gray-800 text-center">${nome}</h3>
+                                <div class="my-4">
+                                    <p class="text-xs text-gray-500 text-center mb-1">Indicador</p>
+                                    <div class="w-full bg-gray-200 rounded-full h-5">
+                                        <div class="h-5 rounded-full ${kpiColorClass} text-white text-xs flex items-center justify-center font-bold" style="width: ${stats.kpi.toFixed(0)}%;">
+                                            ${stats.kpi.toFixed(0)}%
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex justify-around text-center">
+                                    <div>
+                                        <p class="text-2xl font-bold text-gray-700">${stats.pilotos}</p>
+                                        <p class="text-xs text-gray-500">Pilotos</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-2xl font-bold text-gray-700">${stats.formacoes}</p>
+                                        <p class="text-xs text-gray-500">Formações</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="p-4 flex-grow">
+                                <h4 class="text-sm font-semibold text-gray-600 mb-2">Próximos Acompanhamentos</h4>
+                                <ul class="space-y-1 text-gray-700">
+                                    ${proximosEventosHTML || '<li class="text-xs text-gray-400">Nenhum acompanhamento futuro.</li>'}
+                                </ul>
+                            </div>
+                            <div class="p-4 border-t">
+                                <h4 class="text-sm font-semibold text-gray-600 mb-2">Outras Atividades</h4>
+                                <ul class="space-y-1 text-gray-700">
+                                    ${outrasAtividadesHTML || '<li class="text-xs text-gray-400">Nenhuma outra atividade.</li>'}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
-                     <div class="flex-grow p-6 main-content-area">
-                         </div>
+                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow p-6 main-content-area min-h-0">
+                        ${cardsHTML}
+                     </div>
                 `;
             }
-            
+
             function updateDashboardView() {
                 if (!dashboardData) return;
             
@@ -1478,12 +1562,92 @@
                     entregues: entreguesCount,
                     restante: filteredCourses.length - entreguesCount
                 };
-            
+
+                // --- Processamento de dados para a ABA DE PEDAGOGOS ---
+                const pedagogosPrincipais = ["Josimeri Grein", "Enderson Lopes", "Leandro Prado"];
+                const pedagogoStats = {};
+                const hoje = new Date();
+                hoje.setUTCHours(0, 0, 0, 0);
+
+                pedagogosPrincipais.forEach(p => {
+                    pedagogoStats[p] = {
+                        pilotos: 0,
+                        formacoes: 0,
+                        associatedCourseIds: new Set(),
+                        futureEvents: [],
+                        otherActivities: {}
+                    };
+                });
+                
+                const coursesForStats = (selectedYear === 'all')
+                    ? dashboardData.fullCronograma
+                    : dashboardData.fullCronograma.filter(c => c.anoDisponivel === parseInt(selectedYear));
+
+                coursesForStats.forEach(curso => {
+                    const addCourseToPedagogo = (pedagogoNome) => {
+                        if (pedagogosPrincipais.includes(pedagogoNome)) {
+                            pedagogoStats[pedagogoNome].associatedCourseIds.add(curso.id);
+                        }
+                    };
+
+                    if(curso.pedagogo) {
+                       addCourseToPedagogo(curso.pedagogo);
+                    }
+
+                    curso.eventosAssociados.forEach(evento => {
+                        if (pedagogosPrincipais.includes(evento.pedagogo)) {
+                            const stats = pedagogoStats[evento.pedagogo];
+                            if (evento.tipo === 'Piloto') stats.pilotos++;
+                            if (evento.tipo === 'Formação') stats.formacoes++;
+                            
+                            addCourseToPedagogo(evento.pedagogo);
+
+                            const eventDate = parseDate(evento.inicio);
+                            if (eventDate >= hoje) {
+                                stats.futureEvents.push({
+                                    data: eventDate,
+                                    tipo: evento.tipo,
+                                    cursoNome: curso.nome,
+                                    cursoNivel: curso.nivel
+                                });
+                            }
+                        }
+                    });
+                });
+                
+                const atividadesExtrasPedagogos = (selectedYear === 'all' 
+                    ? dashboardData.atividadesExtras?.pedagogos 
+                    : dashboardData.atividadesExtras?.pedagogos.filter(a => a.ano === parseInt(selectedYear))) || [];
+
+                atividadesExtrasPedagogos.forEach(atividade => {
+                    if (pedagogosPrincipais.includes(atividade.responsavel)) {
+                        const stats = pedagogoStats[atividade.responsavel].otherActivities;
+                        stats[atividade.tipo] = (stats[atividade.tipo] || 0) + 1;
+                    }
+                });
+
+                Object.entries(pedagogoStats).forEach(([nome, stats]) => {
+                    const coursesForKpi = Array.from(stats.associatedCourseIds)
+                        .map(id => dashboardData.fullCronograma.find(c => c.id === id))
+                        .filter(Boolean);
+
+                    if (coursesForKpi.length > 0) {
+                        const kpiSum = coursesForKpi.reduce((sum, c) => sum + (c.indicadorReal || 0), 0);
+                        stats.kpi = (kpiSum / coursesForKpi.length) * 100;
+                    } else {
+                        stats.kpi = 0;
+                    }
+
+                    stats.futureEvents.sort((a, b) => a.data - b.data);
+                    stats.futureEvents = stats.futureEvents.slice(0, 5);
+                });
+
+
                 const proximosLancamentos = visaoGeral.proximosLancamentos || [];
             
                 renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
                 renderRelatorios(indicadoresRelatorio, filteredCourses);
-                renderPedagogos();
+                renderPedagogos(pedagogoStats);
             
                 const activeLink = document.querySelector('.menu-link.active');
                 const activeTabId = activeLink ? activeLink.getAttribute('href').substring(1) : 'inicio';
@@ -1601,16 +1765,47 @@
                 
                 document.getElementById('course-modal').classList.remove('hidden');
             }
+            
+            function openOtherActivitiesModal(pedagogoName, activityType) {
+                const modal = document.getElementById('other-activities-modal');
+                const titleEl = document.getElementById('other-activities-modal-title');
+                const listEl = document.getElementById('other-activities-modal-list');
+                if (!modal || !titleEl || !listEl) return;
 
-            document.getElementById('modal-close-btn').addEventListener('click', () => {
-                document.getElementById('course-modal').classList.add('hidden');
-            });
-            document.getElementById('filter-close-btn').addEventListener('click', () => {
-                document.getElementById('filter-modal').classList.add('hidden');
-            });
-            document.getElementById('calendar-close-btn').addEventListener('click', () => {
-                document.getElementById('calendar-modal').classList.add('hidden');
-            });
+                titleEl.textContent = `${activityType} de ${pedagogoName}`;
+
+                const activities = dashboardData.atividadesExtras?.pedagogos.filter(
+                    a => a.responsavel === pedagogoName && a.tipo === activityType
+                ) || [];
+                
+                if (activities.length === 0) {
+                    listEl.innerHTML = '<p class="text-gray-500 text-center">Nenhuma atividade encontrada.</p>';
+                } else {
+                    listEl.innerHTML = '<ul class="space-y-3">' + activities.map(a => {
+                        const startDate = parseDate(a.inicio);
+                        const endDate = parseDate(a.fim);
+                        let dateString = 'Data não informada';
+                        if (startDate) {
+                            const startDateStr = startDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                            if (endDate && startDate.getTime() !== endDate.getTime()) {
+                                const endDateStr = endDate.toLocaleDateString('pt-BR', { timeZone: 'UTC' });
+                                dateString = `${startDateStr} a ${endDateStr}`;
+                            } else {
+                                dateString = startDateStr;
+                            }
+                        }
+                        return `<li class="text-sm border-b pb-2"><span class="font-semibold text-gray-800">${a.tema}</span><br><span class="text-xs text-gray-500">${dateString}</span></li>`;
+                    }).join('') + '</ul>';
+                }
+
+                modal.classList.remove('hidden');
+            }
+
+            document.getElementById('modal-close-btn').addEventListener('click', () => document.getElementById('course-modal').classList.add('hidden'));
+            document.getElementById('filter-close-btn').addEventListener('click', () => document.getElementById('filter-modal').classList.add('hidden'));
+            document.getElementById('calendar-close-btn').addEventListener('click', () => document.getElementById('calendar-modal').classList.add('hidden'));
+            document.getElementById('other-activities-close-btn').addEventListener('click', () => document.getElementById('other-activities-modal').classList.add('hidden'));
+
 
             document.getElementById('tab-detalhes').addEventListener('click', () => {
                 document.getElementById('tab-detalhes').classList.add('active');
@@ -1653,13 +1848,14 @@
                     renderNotifications();
                 }
                 
-                // Lógica de Modals (Curso)
+                // Lógica de Modals (Curso e Outras Atividades)
                 const searchResult = e.target.closest('.search-suggestion-item');
                 const carouselItem = e.target.closest('.carousel-item');
                 const reportRow = e.target.closest('.report-table-row');
-                if (searchResult || carouselItem || reportRow) {
+                const pedagogoAcompanhamento = e.target.closest('.pedagogo-acompanhamento-item');
+                if (searchResult || carouselItem || reportRow || pedagogoAcompanhamento) {
                     e.preventDefault();
-                    const target = searchResult || carouselItem || reportRow;
+                    const target = searchResult || carouselItem || reportRow || pedagogoAcompanhamento;
                     const courseName = target.dataset.courseName;
                     const courseLevel = target.dataset.courseLevel;
                     openModal(courseName, courseLevel);
@@ -1671,6 +1867,13 @@
                         if(searchBar) searchBar.value = '';
                         if(suggestionsContainer) suggestionsContainer.classList.add('hidden');
                     }
+                }
+                
+                const otherActivityItem = e.target.closest('.other-activity-item');
+                if (otherActivityItem) {
+                    const pedagogoName = otherActivityItem.dataset.pedagogo;
+                    const activityType = otherActivityItem.dataset.activityType;
+                    openOtherActivitiesModal(pedagogoName, activityType);
                 }
 
                 // Lógica de Notificações
@@ -1887,7 +2090,8 @@
                         visaoGeral: apiResponse.visaoGeral,
                         cronograma: transformedCronograma,
                         fullCronograma: fullCronograma,
-                        allEvents: allEvents
+                        allEvents: allEvents,
+                        atividadesExtras: apiResponse.atividadesExtras
                     };
                     
                     allNotifications = apiResponse.notificacoes || [];
