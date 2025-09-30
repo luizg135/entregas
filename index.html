@@ -549,26 +549,33 @@
             }
 
 
-            // --- FUNÇÃO DE VERIFICAÇÃO DE DADOS ---
+// --- FUNÇÃO DE VERIFICAÇÃO DE DADOS ---
             function setupReloadTimer() {
                 setInterval(async () => {
                     try {
+                        // Faz uma consulta leve à API para verificar o timestamp.
                         const response = await fetch(API_BASE_URL);
-                        if (!response.ok) return;
+                        if (!response.ok) {
+                            console.error("Não foi possível verificar a API para atualizações.");
+                            return;
+                        }
 
                         const latestData = await response.json();
                         const newTimestamp = latestData.gerado_em;
 
+                        // Compara o novo timestamp com o último que foi armazenado.
                         if (lastDataTimestamp && newTimestamp && lastDataTimestamp !== newTimestamp) {
-                            console.log("Novos dados encontrados. Recarregando a página.");
-                            location.reload();
+                            console.log("Novos dados encontrados. Atualizando o painel...");
+                            // Se houver novos dados, busca e renderiza tudo novamente.
+                            await fetchAndRenderData(selectedYear);
+                        } else {
+                            console.log("Nenhum dado novo encontrado. Nenhuma atualização necessária.");
                         }
                     } catch (error) {
                         console.error("Erro ao verificar atualizações de dados:", error);
                     }
-                }, 1800000); // Verifica a cada 30 minutos
+                }, 180000); // Verifica a cada 3 minutos
             }
-
 
             // --- FUNÇÕES DE AJUDA ---
             function parseDate(dateInput) {
