@@ -1329,61 +1329,72 @@
             }
             
             // *** MODIFICAÇÃO 2: Ícone de informação e tooltip nos cards ***
-            function generateRelatorioCardsHTML(indicadores, hourStats) {
-                const { total, novos, atualizacoes } = hourStats;
+            function generateRelatorioCardsHTML(indicadores, hourStats) {
+                const { total, novos, atualizacoes } = hourStats;
 
-                const createTooltipHTML = (stats) => `
-                    <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg z-10 w-48 -translate-x-1/2 left-1/2 -top-2 translate-y-[-100%]">
-                        <span class="font-bold">Horas Totais: ${stats.total}h</span>
-                        <div class="border-t border-gray-600 my-1"></div>
-                        <span class="font-semibold">Formação:</span>
-                        <br> Previstas: ${stats.formacaoPrevistas}h
-                        <br> Realizadas: ${stats.formacaoRealizadas}h
-                        <div class="border-t border-gray-600 my-1"></div>
-                        <span class="font-semibold">Piloto:</span>
-                        <br> Previstas: ${stats.pilotoPrevistas}h
-                        <br> Realizadas: ${stats.pilotoRealizadas}h
-                        <div class="absolute bg-gray-800 h-2 w-2 left-1/2 -translate-x-1/2 rotate-45 -bottom-1"></div>
-                    </div>
-                `;
+                // Esta função interna é a que vamos modificar
+                const createTooltipHTML = (stats) => {
+                    // Calculamos os totais de horas de formação e piloto aqui
+                    const totalFormacao = stats.formacaoPrevistas + stats.formacaoRealizadas;
+                    const totalPiloto = stats.pilotoPrevistas + stats.pilotoRealizadas;
 
-                return `
-                    <div class="grid grid-cols-5 gap-6">
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
-                            <div class="absolute top-2 right-2 text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
-                            </div>
-                            ${createTooltipHTML(total)}
-                            <p class="text-4xl font-bold text-gray-800">${indicadores.totalCursos}</p>
-                            <p class="text-sm font-medium text-gray-500 mt-1">Total de Cursos</p>
-                        </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
-                             <div class="absolute top-2 right-2 text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
-                            </div>
-                            ${createTooltipHTML(novos)}
-                            <p class="text-4xl font-bold text-gray-800">${indicadores.cursosNovos}</p>
-                            <p class="text-sm font-medium text-gray-500 mt-1">Cursos Novos</p>
-                        </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
-                            <div class="absolute top-2 right-2 text-gray-400">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
-                            </div>
-                            ${createTooltipHTML(atualizacoes)}
-                            <p class="text-4xl font-bold text-gray-800">${indicadores.atualizacoes}</p>
-                            <p class="text-sm font-medium text-gray-500 mt-1">Atualizações</p>
-                        </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
-                            <p class="text-4xl font-bold text-green-600">${indicadores.entregues}</p>
-                            <p class="text-sm font-medium text-gray-500 mt-1">Entregues</p>
-                        </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
-                            <p class="text-4xl font-bold text-yellow-500">${indicadores.restante}</p>
-                            <p class="text-sm font-medium text-gray-500 mt-1">Restante</p>
-                        </div>
-                    </div>
-                `;
-            }
+                    return `
+                                                <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg z-10 w-48 -translate-x-1/2 left-1/2 top-full mt-2">
+                            <span class="font-bold">Horas Totais: ${stats.total}h</span>
+                            <div class="border-t border-gray-600 my-1"></div>
+                                                        <span class="font-semibold">Formação (${totalFormacao}h):</span>
+                            <br>
+                                                        Não realizadas: ${stats.formacaoPrevistas}h
+                            <br>
+                            Realizadas: ${stats.formacaoRealizadas}h
+                            <div class="border-t border-gray-600 my-1"></div>
+                                                        <span class="font-semibold">Piloto (${totalPiloto}h):</span>
+                            <br>
+                                                        Não realizadas: ${stats.pilotoPrevistas}h
+                            <br>
+                            Realizadas: ${stats.pilotoRealizadas}h
+                                                        <div class="absolute bg-gray-800 h-2 w-2 left-1/2 -translate-x-1/2 rotate-45 -top-1"></div>
+                        </div>
+                    `;
+                };
+
+                return `
+                    <div class="grid grid-cols-5 gap-6">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(total)}
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.totalCursos}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Total de Cursos</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                             <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(novos)}
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.cursosNovos}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Cursos Novos</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(atualizacoes)}
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.atualizacoes}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Atualizações</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-green-600">${indicadores.entregues}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Entregues</p>
+                        </div>
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                            <p class="text-4xl font-bold text-yellow-500">${indicadores.restante}</p>
+                            <p class="text-sm font-medium text-gray-500 mt-1">Restante</p>
+                        </div>
+                    </div>
+                `;
+            }
 
 function generateRelatorioTableHTML(cursos) {
     const getSortIndicator = (key) => {
