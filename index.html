@@ -654,6 +654,58 @@
                 return 'bg-green-700';
             }
 
+            // *** NOVA FUNÇÃO *** Calcula as horas de piloto e formação
+            function calculateHourStats(courses) {
+                const today = new Date();
+                today.setUTCHours(0, 0, 0, 0);
+
+                let stats = {
+                    total: 0,
+                    formacaoPrevistas: 0,
+                    formacaoRealizadas: 0,
+                    pilotoPrevistas: 0,
+                    pilotoRealizadas: 0,
+                };
+
+                if (!courses) return stats;
+
+                courses.forEach(course => {
+                    if (!course.eventosAssociados) return;
+
+                    course.eventosAssociados.forEach(event => {
+                        if (event.tipo !== 'Piloto' && event.tipo !== 'Formação') return;
+
+                        const startDate = parseDate(event.inicio);
+                        const endDate = parseDate(event.fim);
+
+                        if (!startDate || !endDate) return;
+
+                        const durationDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
+                        if (durationDays <= 0) return;
+                        
+                        const hours = durationDays * 8;
+                        stats.total += hours;
+
+                        const isPast = endDate < today;
+
+                        if (event.tipo === 'Piloto') {
+                            if (isPast) {
+                                stats.pilotoRealizadas += hours;
+                            } else {
+                                stats.pilotoPrevistas += hours;
+                            }
+                        } else if (event.tipo === 'Formação') {
+                            if (isPast) {
+                                stats.formacaoRealizadas += hours;
+                            } else {
+                                stats.formacaoPrevistas += hours;
+                            }
+                        }
+                    });
+                });
+                return stats;
+            }
+
             function processAndUnifyEvents(apiData) {
                 const allEvents = [];
                 if (!apiData) return allEvents;
@@ -994,6 +1046,16 @@
                 const ctx = document.getElementById('etapasChart')?.getContext('2d');
                 if (!ctx) return;
                 
+                 // Mapeamento dos nomes das etapas
+                const etapaNomesCompletos = {
+                    "Etapa 1": "Prospecção e Contratação de Especialistas",
+                    "Etapa 2": "Edital de Credenciamento",
+                    "Etapa 3": "Curso Piloto",
+                    "Etapa 4": "Formação de Instrutores",
+                    "Etapa 5": "Entrega Técnica",
+                    "Etapa 6": "Lançamento a Campo"
+                };
+
                 const labelsOriginal = ["Etapa 1", "Etapa 2", "Etapa 3", "Etapa 4", "Etapa 5", "Etapa 6", "Entregue"];
                 const labels = labelsOriginal.filter(l => l !== 'Entregue');
                 const chartData = labels.map(label => data[label] || 0);
@@ -1010,7 +1072,16 @@
                         plugins: { 
                             title: { display: true, text: 'Etapa Atual dos Cursos', font: { size: 18 } },
                             legend: { display: false },
-                            datalabels: { anchor: 'end', align: 'end', color: '#4b5563', font: { weight: 'bold' } }
+                            datalabels: { anchor: 'end', align: 'end', color: '#4b5563', font: { weight: 'bold' } },
+                            // *** MODIFICAÇÃO 1: Tooltip com nome completo ***
+                            tooltip: {
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        const shortLabel = tooltipItems[0].label;
+                                        return etapaNomesCompletos[shortLabel] || shortLabel;
+                                    }
+                                }
+                            }
                         }, 
                         scales: { 
                             y: { beginAtZero: true, grid: { drawBorder: false }, suggestedMax: maxValue + 5, ticks: { stepSize: 10 } },
@@ -1209,10 +1280,9 @@
                 `;
             }
 
-            function renderRelatorios(indicadores, cursos) {
+            function renderRelatorios(indicadores, cursos, hourStats) {
                 const container = document.getElementById('relatorio');
 
-                // *** ALTERAÇÃO *** Usa a nova função para calcular o KPI
                 const kpiValues = cursos.map(course => calculateDisplayIndicator(course)).filter(val => val !== null);
 
                 let kpiValue = 0;
@@ -1226,7 +1296,7 @@
                      <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
                          <div class="flex-shrink-0 grid grid-cols-6 gap-6">
                              <div class="col-span-5 flex flex-col gap-6">
-                                 ${generateRelatorioCardsHTML(indicadores)}
+                                 ${generateRelatorioCardsHTML(indicadores, hourStats)}
                                  ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
                              </div>
                               <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
@@ -1257,19 +1327,49 @@
                     </div>
                 `;
             }
+            
+            // *** MODIFICAÇÃO 2: Ícone de informação e tooltip nos cards ***
+            function generateRelatorioCardsHTML(indicadores, hourStats) {
+                const { total, novos, atualizacoes } = hourStats;
 
-            function generateRelatorioCardsHTML(indicadores) {
+                const createTooltipHTML = (stats) => `
+                    <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg z-10 w-48 -translate-x-1/2 left-1/2 -top-2 translate-y-[-100%]">
+                        <span class="font-bold">Horas Totais: ${stats.total}h</span>
+                        <div class="border-t border-gray-600 my-1"></div>
+                        <span class="font-semibold">Formação:</span>
+                        <br> Previstas: ${stats.formacaoPrevistas}h
+                        <br> Realizadas: ${stats.formacaoRealizadas}h
+                        <div class="border-t border-gray-600 my-1"></div>
+                        <span class="font-semibold">Piloto:</span>
+                        <br> Previstas: ${stats.pilotoPrevistas}h
+                        <br> Realizadas: ${stats.pilotoRealizadas}h
+                        <div class="absolute bg-gray-800 h-2 w-2 left-1/2 -translate-x-1/2 rotate-45 -bottom-1"></div>
+                    </div>
+                `;
+
                 return `
                     <div class="grid grid-cols-5 gap-6">
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(total)}
                             <p class="text-4xl font-bold text-gray-800">${indicadores.totalCursos}</p>
                             <p class="text-sm font-medium text-gray-500 mt-1">Total de Cursos</p>
                         </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                             <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(novos)}
                             <p class="text-4xl font-bold text-gray-800">${indicadores.cursosNovos}</p>
                             <p class="text-sm font-medium text-gray-500 mt-1">Cursos Novos</p>
                         </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(atualizacoes)}
                             <p class="text-4xl font-bold text-gray-800">${indicadores.atualizacoes}</p>
                             <p class="text-sm font-medium text-gray-500 mt-1">Atualizações</p>
                         </div>
@@ -1295,10 +1395,7 @@ function generateRelatorioTableHTML(cursos) {
         const dateObj = parseDate(curso.dataDisponivel);
         const data = dateObj ? dateObj.toLocaleDateString('pt-BR', {month: '2-digit', year: 'numeric', timeZone: 'UTC'}) : 'N/D';
         
-        // --- ALTERAÇÃO APLICADA AQUI ---
-        // 1. Calcula o indicador com o tratamento de data
         const displayIndicator = calculateDisplayIndicator(curso);
-        // 2. Obtém a classe da cor com base no indicador tratado
         const colorClass = getIndicatorColorClass(displayIndicator !== null ? displayIndicator * 100 : -1);
 
         return `
@@ -1583,6 +1680,13 @@ function generateRelatorioTableHTML(cursos) {
                     entregues: entreguesCount,
                     restante: filteredCourses.length - entreguesCount
                 };
+                
+                 // *** MODIFICAÇÃO 2 (Continuação): Calcula as horas para cada card ***
+                const hourStats = {
+                    total: calculateHourStats(currentFilteredCourses),
+                    novos: calculateHourStats(currentFilteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('novo'))),
+                    atualizacoes: calculateHourStats(currentFilteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('atualização'))),
+                };
 
                 // --- Processamento de dados para a ABA DE PEDAGOGOS ---
                 const pedagogosPrincipais = ["Josimeri Grein", "Enderson Lopes", "Leandro Prado"];
@@ -1651,15 +1755,11 @@ function generateRelatorioTableHTML(cursos) {
                     const coursesForKpi = Array.from(stats.associatedCourseIds)
                         .map(id => dashboardData.fullCronograma.find(c => c.id === id))
                         .filter(Boolean);
-
-                    // *** ALTERAÇÃO APLICADA AQUI ***
-                    // Mapeia os cursos para seus valores de indicador com tratamento
                     const kpiValues = coursesForKpi
                         .map(course => calculateDisplayIndicator(course))
-                        .filter(val => val !== null); // Garante que apenas valores válidos sejam usados
+                        .filter(val => val !== null); 
 
                     if (kpiValues.length > 0) {
-                        // Calcula a média com base nos valores tratados
                         const kpiSum = kpiValues.reduce((sum, val) => sum + val, 0);
                         stats.kpi = (kpiSum / kpiValues.length) * 100;
                     } else {
@@ -1674,7 +1774,7 @@ function generateRelatorioTableHTML(cursos) {
                 const proximosLancamentos = visaoGeral.proximosLancamentos || [];
             
                 renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
-                renderRelatorios(indicadoresRelatorio, filteredCourses);
+                renderRelatorios(indicadoresRelatorio, filteredCourses, hourStats);
                 renderPedagogos(pedagogoStats);
             
                 const activeLink = document.querySelector('.menu-link.active');
@@ -1704,7 +1804,6 @@ function generateRelatorioTableHTML(cursos) {
                 const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
                 if (!course) return;
                 
-                // *** ALTERAÇÃO *** Usa a nova função para o modal
                 const displayIndicator = calculateDisplayIndicator(course);
                 const percentual = displayIndicator !== null ? `${(displayIndicator * 100).toFixed(0)}%` : 'N/D';
                 const percentageValue = displayIndicator !== null ? displayIndicator * 100 : -1;
