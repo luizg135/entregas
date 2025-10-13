@@ -197,7 +197,7 @@
             flex-direction: column;
         }
         #other-activities-modal .modal-content {
-             width: 35rem;
+            width: 35rem;
         }
         .modal-header {
             padding: 1rem 1.5rem;
@@ -209,7 +209,7 @@
             border-top-right-radius: 0.5rem;
             transition: background-color 0.3s;
         }
-         #modal-course-name {
+        #modal-course-name {
             color: white;
             display: flex;
             align-items: center;
@@ -253,9 +253,9 @@
             color: #6b7280;
             font-weight: 500;
             border-bottom: 3px solid transparent;
-             transition: all 0.2s ease-in-out;
+            transition: all 0.2s ease-in-out;
         }
-         .modal-tabs button.active {
+        .modal-tabs button.active {
             color: #235937;
             border-bottom-color: #235937;
         }
@@ -336,7 +336,7 @@
             text-transform: capitalize;
         }
         #full-calendar-container .fc-header-toolbar .fc-button {
-             margin: 0 4px;
+            margin: 0 4px;
         }
         .fc-event {
             cursor: pointer;
@@ -352,7 +352,7 @@
             justify-content: center;
             position: relative;
         }
-         .gauge-text {
+        .gauge-text {
             position: absolute;
             bottom: 25%;
             font-size: 2.5rem;
@@ -383,7 +383,7 @@
         .notification-item:last-child {
             border-bottom: none;
         }
-                .chart-row-compact {
+        .chart-row-compact {
             height: 45vh; /* Define a altura da linha dos gráficos para 45% da altura da tela */
             min-height: 350px; /* Garante uma altura mínima para telas menores */
         }
@@ -416,7 +416,7 @@
                 <h2 id="modal-course-name" class="text-xl font-bold">Nome do Curso</h2>
                 <button id="modal-close-btn" class="modal-close-btn">&times;</button>
             </div>
-             <div class="modal-tabs">
+            <div class="modal-tabs">
                 <button id="tab-detalhes" class="active">Detalhes</button>
                 <button id="tab-agenda">Agenda</button>
             </div>
@@ -435,7 +435,7 @@
             </div>
             <div id="filter-modal-body" class="modal-body grid grid-cols-2 gap-6">
             </div>
-             <div class="modal-footer">
+            <div class="modal-footer">
                 <button id="clear-filters-btn" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">Limpar Filtros</button>
                 <button id="apply-filters-btn" class="px-4 py-2 text-sm font-medium text-white bg-[#235937] border border-transparent rounded-md hover:bg-green-800">Aplicar</button>
             </div>
@@ -445,22 +445,22 @@
     <div id="calendar-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="modal-header">
-                 <h2 id="calendar-modal-title" class="text-xl font-bold text-white">Calendário de Eventos</h2>
-                 <div class="flex items-center gap-2">
+                <h2 id="calendar-modal-title" class="text-xl font-bold text-white">Calendário de Eventos</h2>
+                <div class="flex items-center gap-2">
                     <button id="calendar-filter-btn" class="p-2 rounded-full hover:bg-white/20" title="Filtrar eventos">
                         <svg class="h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-                          <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
+                            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v3a1 1 0 01-.293.707L12 11.414V15a1 1 0 01-.293.707l-2 2A1 1 0 018 17v-5.586L3.293 6.707A1 1 0 013 6V3z" clip-rule="evenodd" />
                         </svg>
                     </button>
                     <button id="calendar-close-btn" class="modal-close-btn">&times;</button>
-                 </div>
+                </div>
             </div>
             <div id="calendar-modal-body">
                 <div id="full-calendar-wrapper" class="p-4 flex-grow">
                     <div id="full-calendar-container" class="w-full h-full"></div>
                 </div>
                 <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
-                     </div>
+                </div>
             </div>
         </div>
     </div>
@@ -657,6 +657,57 @@
                 return 'bg-green-700';
             }
 
+            function calculateHourStats(courses) {
+                const today = new Date();
+                today.setUTCHours(0, 0, 0, 0);
+
+                let stats = {
+                    total: 0,
+                    formacaoPrevistas: 0,
+                    formacaoRealizadas: 0,
+                    pilotoPrevistas: 0,
+                    pilotoRealizadas: 0,
+                };
+
+                if (!courses) return stats;
+
+                courses.forEach(course => {
+                    if (!course.eventosAssociados) return;
+
+                    course.eventosAssociados.forEach(event => {
+                        if (event.tipo !== 'Piloto' && event.tipo !== 'Formação') return;
+
+                        const startDate = parseDate(event.inicio);
+                        const endDate = parseDate(event.fim);
+
+                        if (!startDate || !endDate) return;
+
+                        const durationDays = Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
+                        if (durationDays <= 0) return;
+                        
+                        const hours = durationDays * 8;
+                        stats.total += hours;
+
+                        const isPast = endDate < today;
+
+                        if (event.tipo === 'Piloto') {
+                            if (isPast) {
+                                stats.pilotoRealizadas += hours;
+                            } else {
+                                stats.pilotoPrevistas += hours;
+                            }
+                        } else if (event.tipo === 'Formação') {
+                            if (isPast) {
+                                stats.formacaoRealizadas += hours;
+                            } else {
+                                stats.formacaoPrevistas += hours;
+                            }
+                        }
+                    });
+                });
+                return stats;
+            }
+
             function processAndUnifyEvents(apiData) {
                 const allEvents = [];
                 if (!apiData) return allEvents;
@@ -753,7 +804,7 @@
                             }
                         });
                     });
-                     (apiData.atividadesExtras.tecnicos || []).forEach(item => {
+                    (apiData.atividadesExtras.tecnicos || []).forEach(item => {
                         addEvent({
                             title: `${item.tipo}: ${item.tema}`,
                             start: parseDate(item.inicio),
@@ -841,12 +892,12 @@
                                     ${yearOptions}
                                 </select>
                             </div>
-                             <div class="relative">
+                            <div class="relative">
                                 <input type="text" class="search-bar w-72 pl-10 pr-4 py-2 border rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-green-800/50" placeholder="Buscar curso...">
                                 <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" /></svg></div>
                                 <div class="search-suggestions hidden absolute mt-1 w-full bg-white rounded-lg shadow-xl z-10 border max-h-60 overflow-y-auto"></div>
                             </div>
-                                <button id="header-calendar-btn" class="p-2 rounded-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400/50 bg-green-700 text-white" title="Abrir Calendário">
+                            <button id="header-calendar-btn" class="p-2 rounded-md hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-400/50 bg-green-700 text-white" title="Abrir Calendário">
                                 <svg class="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
                             </button>
                             <div id="notification-container" class="relative">
@@ -888,8 +939,8 @@
                 return `
                     <div class="grid grid-cols-5 gap-6">
                         <div class="col-span-1 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center items-center text-center">
-                             <p class="text-sm font-medium text-gray-500 leading-tight">Meta de Entregas</p>
-                             <p class="text-4xl font-bold text-gray-800">${indicadores.meta_entregas || 0}</p>
+                            <p class="text-sm font-medium text-gray-500 leading-tight">Meta de Entregas</p>
+                            <p class="text-4xl font-bold text-gray-800">${indicadores.meta_entregas || 0}</p>
                         </div>
                         <div class="col-span-2 bg-white p-4 rounded-lg border border-gray-200 flex flex-col justify-center">
                             <div class="flex justify-between items-center mb-2">
@@ -952,7 +1003,7 @@
                                     ${items}
                                 </div>
                             </div>
-                             <button id="prev-btn" class="carousel-btn prev">
+                            <button id="prev-btn" class="carousel-btn prev">
                                 <svg class="h-4 w-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                             </button>
                             <button id="next-btn" class="carousel-btn next">
@@ -998,6 +1049,16 @@
                 const ctx = document.getElementById('etapasChart')?.getContext('2d');
                 if (!ctx) return;
                 
+                 // Mapeamento dos nomes das etapas
+                const etapaNomesCompletos = {
+                    "Etapa 1": "Prospecção e Contratação de Especialistas",
+                    "Etapa 2": "Edital de Credenciamento",
+                    "Etapa 3": "Curso Piloto",
+                    "Etapa 4": "Formação de Instrutores",
+                    "Etapa 5": "Entrega Técnica",
+                    "Etapa 6": "Lançamento a Campo"
+                };
+
                 const labelsOriginal = ["Etapa 1", "Etapa 2", "Etapa 3", "Etapa 4", "Etapa 5", "Etapa 6", "Entregue"];
                 const labels = labelsOriginal.filter(l => l !== 'Entregue');
                 const chartData = labels.map(label => data[label] || 0);
@@ -1014,7 +1075,15 @@
                         plugins: { 
                             title: { display: true, text: 'Etapa Atual dos Cursos', font: { size: 18 } },
                             legend: { display: false },
-                            datalabels: { anchor: 'end', align: 'end', color: '#4b5563', font: { weight: 'bold' } }
+                            datalabels: { anchor: 'end', align: 'end', color: '#4b5563', font: { weight: 'bold' } },
+                            tooltip: {
+                                callbacks: {
+                                    title: function(tooltipItems) {
+                                        const shortLabel = tooltipItems[0].label;
+                                        return etapaNomesCompletos[shortLabel] || shortLabel;
+                                    }
+                                }
+                            }
                         }, 
                         scales: { 
                             y: { beginAtZero: true, grid: { drawBorder: false }, suggestedMax: maxValue + 5, ticks: { stepSize: 10 } },
@@ -1113,7 +1182,7 @@
                         plugins: { 
                             title: { display: true, text: 'Nível dos Cursos', font: { size: 18 } },
                             legend: { position: 'bottom' },
-                             datalabels: {
+                            datalabels: {
                                 formatter: (value, ctx) => {
                                     let sum = 0;
                                     ctx.chart.data.datasets[0].data.forEach(d => { sum += d; });
@@ -1213,10 +1282,9 @@
                 `;
             }
 
-            function renderRelatorios(indicadores, cursos) {
+            function renderRelatorios(indicadores, cursos, hourStats) {
                 const container = document.getElementById('relatorio');
 
-                // *** ALTERAÇÃO *** Usa a nova função para calcular o KPI
                 const kpiValues = cursos.map(course => calculateDisplayIndicator(course)).filter(val => val !== null);
 
                 let kpiValue = 0;
@@ -1225,20 +1293,20 @@
                     kpiValue = Math.round((kpiSum / kpiValues.length) * 100);
                 }
 
-                 container.innerHTML = `
+                container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
-                     <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
-                         <div class="flex-shrink-0 grid grid-cols-6 gap-6">
-                             <div class="col-span-5 flex flex-col gap-6">
-                                 ${generateRelatorioCardsHTML(indicadores)}
-                                 ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
-                             </div>
-                              <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
-                                 <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
-                                 ${generateKpiGauge(kpiValue)}
-                             </div>
-                         </div>
-                            <div class="bg-white border rounded-lg overflow-hidden flex flex-col">
+                    <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
+                        <div class="flex-shrink-0 grid grid-cols-6 gap-6">
+                            <div class="col-span-5 flex flex-col gap-6">
+                                ${generateRelatorioCardsHTML(indicadores, hourStats)}
+                                ${generateTecnicoFilterHTML(dashboardData.fullCronograma.filter(c => selectedYear === 'all' || c.anoDisponivel === parseInt(selectedYear)))}
+                            </div>
+                            <div class="col-span-1 bg-white border rounded-lg p-4 flex flex-col">
+                                <h3 class="text-center font-semibold text-gray-700 mb-2">Indicador</h3>
+                                ${generateKpiGauge(kpiValue)}
+                            </div>
+                        </div>
+                        <div class="flex-grow bg-white border rounded-lg overflow-hidden flex flex-col min-h-0">
                             <div class="p-4 border-b flex justify-between items-center flex-shrink-0">
                                 <h2 class="text-lg font-semibold text-gray-700">Todos os Cursos</h2>
                                 <div class="flex items-center gap-2">
@@ -1258,23 +1326,51 @@
                                 ${generateRelatorioTableHTML(cursos)}
                             </div>
                         </div>
-                    <div class="flex-grow"></div>
                     </div>
                 `;
             }
+            
+            function generateRelatorioCardsHTML(indicadores, hourStats) {
+                const { total, novos, atualizacoes } = hourStats;
 
-            function generateRelatorioCardsHTML(indicadores) {
+                const createTooltipHTML = (stats) => `
+                    <div class="absolute hidden group-hover:block bg-gray-800 text-white text-xs rounded-lg py-2 px-3 shadow-lg z-10 w-48 -translate-x-1/2 left-1/2 top-full mt-2">
+                        <span class="font-bold">Horas Totais: ${stats.total}h</span>
+                        <div class="border-t border-gray-600 my-1"></div>
+                        <span class="font-semibold">Formação: ${stats.formacaoPrevistas + stats.formacaoRealizadas}h</span>
+                        <br> Não Realizadas: ${stats.formacaoPrevistas}h
+                        <br> Realizadas: ${stats.formacaoRealizadas}h
+                        <div class="border-t border-gray-600 my-1"></div>
+                        <span class="font-semibold">Piloto: ${stats.pilotoPrevistas + stats.pilotoRealizadas}h</span>
+                        <br> Não Realizadas: ${stats.pilotoPrevistas}h
+                        <br> Realizadas: ${stats.pilotoRealizadas}h
+                        <div class="absolute bg-gray-800 h-2 w-2 left-1/2 -translate-x-1/2 rotate-45 -top-1"></div>
+                    </div>
+                `;
+
                 return `
                     <div class="grid grid-cols-5 gap-6">
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(total)}
                             <p class="text-4xl font-bold text-gray-800">${indicadores.totalCursos}</p>
                             <p class="text-sm font-medium text-gray-500 mt-1">Total de Cursos</p>
                         </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(novos)}
                             <p class="text-4xl font-bold text-gray-800">${indicadores.cursosNovos}</p>
                             <p class="text-sm font-medium text-gray-500 mt-1">Cursos Novos</p>
                         </div>
-                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center">
+                        <div class="bg-white p-4 rounded-lg border flex flex-col items-center justify-center text-center relative group">
+                            <div class="absolute top-2 right-2 text-gray-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" /></svg>
+                            </div>
+                            ${createTooltipHTML(atualizacoes)}
                             <p class="text-4xl font-bold text-gray-800">${indicadores.atualizacoes}</p>
                             <p class="text-sm font-medium text-gray-500 mt-1">Atualizações</p>
                         </div>
@@ -1300,10 +1396,7 @@ function generateRelatorioTableHTML(cursos) {
         const dateObj = parseDate(curso.dataDisponivel);
         const data = dateObj ? dateObj.toLocaleDateString('pt-BR', {month: '2-digit', year: 'numeric', timeZone: 'UTC'}) : 'N/D';
         
-        // --- ALTERAÇÃO APLICADA AQUI ---
-        // 1. Calcula o indicador com o tratamento de data
         const displayIndicator = calculateDisplayIndicator(curso);
-        // 2. Obtém a classe da cor com base no indicador tratado
         const colorClass = getIndicatorColorClass(displayIndicator !== null ? displayIndicator * 100 : -1);
 
         return `
@@ -1320,20 +1413,20 @@ function generateRelatorioTableHTML(cursos) {
     }).join('');
 
     return `
-                  <table class="min-w-full divide-y divide-gray-200">
-                       <thead class="bg-gray-50 sticky top-0 z-10">
-                          <tr>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
-                              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
-                          </tr>
-                      </thead>
-                      <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
-                  </table>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0 z-10">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"></th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nome">Curso ${getSortIndicator('nome')}</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="nivel">Nível ${getSortIndicator('nivel')}</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="tipo">Tipo ${getSortIndicator('tipo')}</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="dataDisponivel">Lançamento ${getSortIndicator('dataDisponivel')}</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="pedagogo">Pedagogo ${getSortIndicator('pedagogo')}</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable-header" data-sort="etapaAtual">Etapa Atual ${getSortIndicator('etapaAtual')}</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">${tableRows}</tbody>
+                </table>
     `;
 }
 
@@ -1373,7 +1466,7 @@ function generateRelatorioTableHTML(cursos) {
                     return `<div class="mb-4">
                                 <h4 class="font-semibold mb-2 text-gray-800">${title}</h4>
                                 <div class="space-y-1">${checkboxes}</div>
-                           </div>`;
+                            </div>`;
                 };
 
                 container.innerHTML = `
@@ -1432,7 +1525,7 @@ function generateRelatorioTableHTML(cursos) {
                         info.jsEvent.preventDefault();
                         const props = info.event.extendedProps;
                         if (props.courseName && props.courseLevel) {
-                             document.getElementById('calendar-modal').classList.add('hidden');
+                            document.getElementById('calendar-modal').classList.add('hidden');
                             openModal(props.courseName, props.courseLevel);
                         }
                     }
@@ -1450,7 +1543,6 @@ function generateRelatorioTableHTML(cursos) {
                 }
 
                 const cardsHTML = Object.entries(pedagogoStats).map(([nome, stats]) => {
-                    // O conteúdo desta função (a criação dos cards) continua o mesmo...
                     const kpiColorClass = getIndicatorColorClass(stats.kpi);
                     const totalOtherActivities = Object.values(stats.otherActivities).reduce((sum, count) => sum + count, 0);
 
@@ -1468,8 +1560,8 @@ function generateRelatorioTableHTML(cursos) {
                         .map(([tipo, count]) => `
                             <li class="other-activity-item cursor-pointer hover:bg-gray-100 p-1 rounded" data-pedagogo="${nome}" data-activity-type="${tipo}">
                                 <div class="flex justify-between items-center text-xs">
-                                     <span>${count}x ${tipo}</span>
-                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
+                                    <span>${count}x ${tipo}</span>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-gray-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" /></svg>
                                 </div>
                             </li>
                         `)
@@ -1517,15 +1609,11 @@ function generateRelatorioTableHTML(cursos) {
                     `;
                 }).join('');
 
-                // O container principal foi ajustado para corresponder ao das outras abas
                 container.innerHTML = `
                     ${generateHeaderHTML(selectedYear)}
-                     <div class="flex-grow p-6 flex flex-col gap-6 main-content-area min-h-0">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            ${cardsHTML}
-                        </div>
-                        <div class="flex-grow"></div>
-                     </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 flex-grow p-6 main-content-area min-h-0">
+                        ${cardsHTML}
+                    </div>
                 `;
             }
 
@@ -1542,10 +1630,10 @@ function generateRelatorioTableHTML(cursos) {
             
                 let filteredCourses = filteredCoursesByYear.filter(course => {
                     return (activeFilters.tecnico.length === 0 || activeFilters.tecnico.includes(course.tecnico)) &&
-                           (activeFilters.pedagogo.length === 0 || activeFilters.pedagogo.includes(course.pedagogo)) &&
-                           (activeFilters.etapaAtual.length === 0 || activeFilters.etapaAtual.includes(course.etapaAtual)) &&
-                           (activeFilters.nivel.length === 0 || activeFilters.nivel.includes(course.nivel)) &&
-                           (activeFilters.tipo.length === 0 || activeFilters.tipo.includes(course.tipo));
+                            (activeFilters.pedagogo.length === 0 || activeFilters.pedagogo.includes(course.pedagogo)) &&
+                            (activeFilters.etapaAtual.length === 0 || activeFilters.etapaAtual.includes(course.etapaAtual)) &&
+                            (activeFilters.nivel.length === 0 || activeFilters.nivel.includes(course.nivel)) &&
+                            (activeFilters.tipo.length === 0 || activeFilters.tipo.includes(course.tipo));
                 });
             
                 filteredCourses.sort((a, b) => {
@@ -1592,6 +1680,12 @@ function generateRelatorioTableHTML(cursos) {
                     atualizacoes: filteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('atualização')).length,
                     entregues: entreguesCount,
                     restante: filteredCourses.length - entreguesCount
+                };
+
+                const hourStats = {
+                    total: calculateHourStats(currentFilteredCourses),
+                    novos: calculateHourStats(currentFilteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('novo'))),
+                    atualizacoes: calculateHourStats(currentFilteredCourses.filter(c => c.tipo && c.tipo.toLowerCase().includes('atualização'))),
                 };
 
                 // --- Processamento de dados para a ABA DE PEDAGOGOS ---
@@ -1661,15 +1755,11 @@ function generateRelatorioTableHTML(cursos) {
                     const coursesForKpi = Array.from(stats.associatedCourseIds)
                         .map(id => dashboardData.fullCronograma.find(c => c.id === id))
                         .filter(Boolean);
-
-                    // *** ALTERAÇÃO APLICADA AQUI ***
-                    // Mapeia os cursos para seus valores de indicador com tratamento
                     const kpiValues = coursesForKpi
                         .map(course => calculateDisplayIndicator(course))
-                        .filter(val => val !== null); // Garante que apenas valores válidos sejam usados
+                        .filter(val => val !== null); 
 
                     if (kpiValues.length > 0) {
-                        // Calcula a média com base nos valores tratados
                         const kpiSum = kpiValues.reduce((sum, val) => sum + val, 0);
                         stats.kpi = (kpiSum / kpiValues.length) * 100;
                     } else {
@@ -1684,7 +1774,7 @@ function generateRelatorioTableHTML(cursos) {
                 const proximosLancamentos = visaoGeral.proximosLancamentos || [];
             
                 renderInicio(indicadoresInicio, analiseDoAno, proximosLancamentos);
-                renderRelatorios(indicadoresRelatorio, filteredCourses);
+                renderRelatorios(indicadoresRelatorio, filteredCourses, hourStats);
                 renderPedagogos(pedagogoStats);
             
                 const activeLink = document.querySelector('.menu-link.active');
@@ -1695,8 +1785,8 @@ function generateRelatorioTableHTML(cursos) {
             
                 const filterBtn = document.getElementById('filter-btn');
                 if (filterBtn) {
-                     const isFilterActive = Object.values(activeFilters).some(arr => arr.length > 0);
-                      filterBtn.classList.toggle('active', isFilterActive);
+                    const isFilterActive = Object.values(activeFilters).some(arr => arr.length > 0);
+                    filterBtn.classList.toggle('active', isFilterActive);
                 }
 
                 document.querySelectorAll('.content-section').forEach(tab => {
@@ -1714,7 +1804,6 @@ function generateRelatorioTableHTML(cursos) {
                 const course = dashboardData.fullCronograma.find(c => c.nome === courseName && c.nivel === courseLevel);
                 if (!course) return;
                 
-                // *** ALTERAÇÃO *** Usa a nova função para o modal
                 const displayIndicator = calculateDisplayIndicator(course);
                 const percentual = displayIndicator !== null ? `${(displayIndicator * 100).toFixed(0)}%` : 'N/D';
                 const percentageValue = displayIndicator !== null ? displayIndicator * 100 : -1;
@@ -1741,15 +1830,15 @@ function generateRelatorioTableHTML(cursos) {
                 `;
                 
                 document.getElementById('content-detalhes').innerHTML = `
-                     <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
-                         <div class="col-span-2 p-3 bg-white border rounded-md">
-                             <p class="text-gray-500 font-semibold">Etapa Atual</p>
-                             <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
-                         </div>
-                         <div><p class="text-gray-500 font-semibold">Nível do Curso</p><p class="text-gray-900">${course.nivel || 'N/D'}</p></div>
-                         <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
-                         <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
-                         <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
+                        <div class="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
+                            <div class="col-span-2 p-3 bg-white border rounded-md">
+                                <p class="text-gray-500 font-semibold">Etapa Atual</p>
+                                <p class="text-gray-900 text-base">${course.etapaAtual || 'N/D'}</p>
+                            </div>
+                            <div><p class="text-gray-500 font-semibold">Nível do Curso</p><p class="text-gray-900">${course.nivel || 'N/D'}</p></div>
+                            <div><p class="text-gray-500 font-semibold">Tipo</p><p class="text-gray-900">${course.tipo || 'N/D'}</p></div>
+                            <div><p class="text-gray-500 font-semibold">Técnico Responsável</p><p class="text-gray-900">${course.tecnico || 'N/D'}</p></div>
+                            <div><p class="text-gray-500 font-semibold">Pedagogo Responsável</p><p class="text-gray-900">${course.pedagogo || 'N/D'}</p></div>
                     </div>
                 `;
                 
@@ -1854,7 +1943,7 @@ function generateRelatorioTableHTML(cursos) {
                 document.getElementById('content-detalhes').classList.remove('hidden');
                 document.getElementById('content-agenda').classList.add('hidden');
             });
-             document.getElementById('tab-agenda').addEventListener('click', () => {
+            document.getElementById('tab-agenda').addEventListener('click', () => {
                 document.getElementById('tab-agenda').classList.add('active');
                 document.getElementById('tab-detalhes').classList.remove('active');
                 document.getElementById('content-agenda').classList.remove('hidden');
@@ -1875,7 +1964,7 @@ function generateRelatorioTableHTML(cursos) {
                     dropdown.classList.toggle('hidden');
                     document.querySelectorAll('.menu-dropdown').forEach(d => { if (d !== dropdown) d.classList.add('hidden'); });
                 } else if (!e.target.closest('.menu-dropdown')) {
-                     document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.add('hidden'));
+                    document.querySelectorAll('.menu-dropdown').forEach(d => d.classList.add('hidden'));
                 }
 
                 const menuLink = e.target.closest('.menu-link');
@@ -1927,9 +2016,9 @@ function generateRelatorioTableHTML(cursos) {
                         header.querySelector('#tab-nao-lidas').click();
                     }
                 } else if (!e.target.closest('#notification-container')) {
-                     document.querySelectorAll('#notification-panel').forEach(panel => {
-                         panel.classList.add('hidden');
-                     });
+                    document.querySelectorAll('#notification-panel').forEach(panel => {
+                        panel.classList.add('hidden');
+                    });
                 }
 
                 const notificationItem = e.target.closest('.notification-item.unread');
@@ -1946,7 +2035,7 @@ function generateRelatorioTableHTML(cursos) {
                     renderNotifications();
                     markAllReadBtn.closest('#notification-panel').querySelector('#tab-lidas').click();
                 }
-                 const notificationTab = e.target.closest('.notification-tab');
+                const notificationTab = e.target.closest('.notification-tab');
                 if (notificationTab) {
                     const panel = notificationTab.closest('#notification-panel');
                     panel.querySelectorAll('.notification-tab').forEach(tab => {
@@ -1981,7 +2070,7 @@ function generateRelatorioTableHTML(cursos) {
                 if (e.target.closest('#clear-filters-btn')) { clearFilters(); }
 
                 // Lógica do Calendário
-                 if (e.target.closest('#header-calendar-btn')) {
+                if (e.target.closest('#header-calendar-btn')) {
                     calendarFilters = { tecnico: [], pedagogo: [] }; // Resetar filtros
                     document.getElementById('calendar-modal').classList.remove('hidden');
                     setTimeout(() => {
@@ -1992,7 +2081,7 @@ function generateRelatorioTableHTML(cursos) {
                 if (e.target.closest('#calendar-filter-btn')) {
                     document.getElementById('calendar-filters-container').classList.toggle('hidden');
                     setTimeout(() => {
-                       if (fullCalendarInstance) { fullCalendarInstance.updateSize(); }
+                        if (fullCalendarInstance) { fullCalendarInstance.updateSize(); }
                     }, 310);
                 }
                 
@@ -2004,9 +2093,9 @@ function generateRelatorioTableHTML(cursos) {
                 }
             });
             
-             document.body.addEventListener('input', function(e) {
+            document.body.addEventListener('input', function(e) {
                 const searchBar = e.target.closest('.search-bar');
-                 if (searchBar && dashboardData) {
+                if (searchBar && dashboardData) {
                     const suggestionsContainer = searchBar.parentElement.querySelector('.search-suggestions');
                     const query = searchBar.value.toLowerCase();
                     const yearToFilter = selectedYear === 'all' ? null : parseInt(selectedYear);
@@ -2077,14 +2166,14 @@ function generateRelatorioTableHTML(cursos) {
             }
 
             function applyFilters() {
-                 const newFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
-                  document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked').forEach(checkbox => {
-                       const key = checkbox.dataset.filterKey;
-                       newFilters[key].push(checkbox.value);
-                  });
-                  activeFilters = newFilters;
-                  updateDashboardView();
-                  document.getElementById('filter-modal').classList.add('hidden');
+                const newFilters = { tecnico: [], pedagogo: [], etapaAtual: [], nivel: [], tipo: [] };
+                document.querySelectorAll('#filter-modal-body input[type="checkbox"]:checked').forEach(checkbox => {
+                    const key = checkbox.dataset.filterKey;
+                    newFilters[key].push(checkbox.value);
+                });
+                activeFilters = newFilters;
+                updateDashboardView();
+                document.getElementById('filter-modal').classList.add('hidden');
             }
 
             function clearFilters() {
@@ -2105,7 +2194,7 @@ function generateRelatorioTableHTML(cursos) {
                     const apiResponse = await response.json();
                     
                     if (!apiResponse || typeof apiResponse !== 'object' || !apiResponse.cursos) {
-                         throw new Error("A estrutura dos dados recebidos da API é inválida ou a resposta está vazia.");
+                        throw new Error("A estrutura dos dados recebidos da API é inválida ou a resposta está vazia.");
                     }
                     
                     const transformedCronograma = apiResponse.cursos.map(c => ({
@@ -2148,7 +2237,7 @@ function generateRelatorioTableHTML(cursos) {
             }
             
             async function initializeDashboard() {
-                 try {
+                try {
                     const response = await fetch(API_BASE_URL);
                     if (response.ok) {
                         const apiResponse = await response.json();
@@ -2158,11 +2247,11 @@ function generateRelatorioTableHTML(cursos) {
                     }
                     await fetchAndRenderData(selectedYear);
                     setupReloadTimer();
-                 } catch (error) {
-                     console.error("Falha ao inicializar o dashboard:", error);
-                     const errorContainer = document.getElementById('inicio') || document.body;
+                } catch (error) {
+                    console.error("Falha ao inicializar o dashboard:", error);
+                    const errorContainer = document.getElementById('inicio') || document.body;
                     errorContainer.innerHTML = `<div class="m-6 p-4 text-red-700 bg-red-100 rounded-lg"><strong>Erro ao inicializar o dashboard.</strong><br>${error.message}</div>`;
-                 }
+                }
             }
 
             initializeDashboard();
