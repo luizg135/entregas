@@ -1516,7 +1516,70 @@ function generateRelatorioTableHTML(cursos) {
                         week: 'Semana',
                         list: 'Lista'
                     },
-                    events: eventsToRender,
+eventSources: [
+                        {
+                            events: eventsToRender // Mantém os seus cursos intactos
+                        },
+                        {
+                            // Busca os feriados e calcula emendas
+                            events: async function(info, successCallback, failureCallback) {
+                                try {
+                                    const viewDate = new Date((info.start.getTime() + info.end.getTime()) / 2);
+                                    const year = viewDate.getFullYear();
+                                    
+                                    const response = await fetch(`https://brasilapi.com.br/api/feriados/v1/${year}`);
+                                    if (!response.ok) throw new Error('Falha ao buscar feriados');
+                                    
+                                    const feriados = await response.json();
+                                    const holidayEvents = [];
+
+                                    feriados.forEach(f => {
+                                        holidayEvents.push({
+                                            title: `Feriado: ${f.name}`,
+                                            start: f.date,
+                                            allDay: true,
+                                            color: '#ef4444',
+                                            textColor: '#ffffff',
+                                            display: 'block'
+                                        });
+
+                                        const [y, m, d] = f.date.split('-');
+                                        const holidayDate = new Date(y, m - 1, d);
+                                        const dayOfWeek = holidayDate.getDay();
+
+                                        if (dayOfWeek === 2) {
+                                            const emendaDate = new Date(holidayDate);
+                                            emendaDate.setDate(holidayDate.getDate() - 1);
+                                            holidayEvents.push({
+                                                title: `Recesso (Emenda)`,
+                                                start: emendaDate.toISOString().split('T')[0],
+                                                allDay: true,
+                                                color: '#f97316',
+                                                textColor: '#ffffff',
+                                                display: 'block'
+                                            });
+                                        } else if (dayOfWeek === 4) {
+                                            const emendaDate = new Date(holidayDate);
+                                            emendaDate.setDate(holidayDate.getDate() + 1);
+                                            holidayEvents.push({
+                                                title: `Recesso (Emenda)`,
+                                                start: emendaDate.toISOString().split('T')[0],
+                                                allDay: true,
+                                                color: '#f97316',
+                                                textColor: '#ffffff',
+                                                display: 'block'
+                                            });
+                                        }
+                                    });
+                                    
+                                    successCallback(holidayEvents);
+                                } catch (error) {
+                                    console.error('Erro ao carregar os feriados:', error);
+                                    successCallback([]); 
+                                }
+                            }
+                        }
+                    ],
                     allDayDefault: true,
                     eventDisplay: 'block',
                     displayEventTime: false,
