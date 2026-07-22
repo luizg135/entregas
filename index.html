@@ -1518,10 +1518,42 @@ function generateRelatorioTableHTML(cursos) {
                     },
 eventSources: [
                         {
-                            events: eventsToRender // Mantém os seus cursos intactos
+                            // 1. Busca os CURSOS dinamicamente conforme o ano do calendário
+                            events: async function(info, successCallback, failureCallback) {
+                                try {
+                                    // Descobre qual ano o usuário está olhando no calendário agora
+                                    const viewDate = new Date((info.start.getTime() + info.end.getTime()) / 2);
+                                    const year = viewDate.getFullYear();
+                                    
+                                    // Vai na sua API de forma silenciosa e puxa só os dados desse ano
+                                    const response = await fetch(`${API_BASE_URL}?ano=${year}`);
+                                    const apiResponse = await response.json();
+                                    
+                                    // Processa os eventos usando a função que você já criou
+                                    let eventosDoCalendario = processAndUnifyEvents(apiResponse);
+
+                                    // Mantém o filtro lateral do calendário (Técnico/Pedagogo) funcionando perfeitamente!
+                                    const activeTecnicos = calendarFilters.tecnico;
+                                    const activePedagogos = calendarFilters.pedagogo;
+
+                                    if (activeTecnicos.length > 0 || activePedagogos.length > 0) {
+                                        eventosDoCalendario = eventosDoCalendario.filter(event => {
+                                            const props = event.extendedProps;
+                                            const tecnicoMatch = activeTecnicos.length === 0 || activeTecnicos.includes(props.tecnico || '');
+                                            const pedagogoMatch = activePedagogos.length === 0 || activePedagogos.includes(props.pedagogo || '');
+                                            return tecnicoMatch && pedagogoMatch;
+                                        });
+                                    }
+
+                                    successCallback(eventosDoCalendario);
+                                } catch (error) {
+                                    console.error('Erro ao buscar cursos pro calendário:', error);
+                                    successCallback([]);
+                                }
+                            }
                         },
                         {
-                            // Busca os feriados e calcula emendas
+                            // 2. Busca os FERIADOS dinamicamente e calcula as EMENDAS
                             events: async function(info, successCallback, failureCallback) {
                                 try {
                                     const viewDate = new Date((info.start.getTime() + info.end.getTime()) / 2);
@@ -1534,6 +1566,7 @@ eventSources: [
                                     const holidayEvents = [];
 
                                     feriados.forEach(f => {
+                                        // Feriado principal
                                         holidayEvents.push({
                                             title: `Feriado: ${f.name}`,
                                             start: f.date,
@@ -1543,6 +1576,7 @@ eventSources: [
                                             display: 'block'
                                         });
 
+                                        // Regra das emendas
                                         const [y, m, d] = f.date.split('-');
                                         const holidayDate = new Date(y, m - 1, d);
                                         const dayOfWeek = holidayDate.getDay();
@@ -1554,7 +1588,7 @@ eventSources: [
                                                 title: `Recesso (Emenda)`,
                                                 start: emendaDate.toISOString().split('T')[0],
                                                 allDay: true,
-                                                color: '#f97316',
+                                                color: '#f97316', // Laranja
                                                 textColor: '#ffffff',
                                                 display: 'block'
                                             });
