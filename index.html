@@ -706,7 +706,7 @@
                 return stats;
             }
 
-            function processAndUnifyEvents(apiData) {
+function processAndUnifyEvents(apiData) {
                 const allEvents = [];
                 if (!apiData) return allEvents;
 
@@ -774,8 +774,16 @@
                             pedagogo = responsavel;
                         }
                     }
+                    
+                    // --- MODIFICAÇÃO AQUI: Anexa o nome do responsável se existir ---
+                    let pessoaResponsavel = responsavel || tecnico || pedagogo;
+                    let tituloFinal = item.titulo;
+                    if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
+                        tituloFinal = `${tituloFinal} - ${pessoaResponsavel}`;
+                    }
+
                     addEvent({
-                        title: item.titulo,
+                        title: tituloFinal,
                         start: parseDate(item.dataInicio),
                         end: parseDate(item.dataFim) || parseDate(item.dataInicio),
                         extendedProps: {
@@ -792,7 +800,8 @@
                 if (apiData.atividadesExtras) {
                     (apiData.atividadesExtras.pedagogos || []).forEach(item => {
                         addEvent({
-                            title: `${item.tipo}: ${item.tema}`,
+                            // --- MODIFICAÇÃO AQUI: Adicionado " - ${item.responsavel}" ---
+                            title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
                             extendedProps: {
@@ -804,7 +813,8 @@
                     });
                     (apiData.atividadesExtras.tecnicos || []).forEach(item => {
                         addEvent({
-                            title: `${item.tipo}: ${item.tema}`,
+                            // --- MODIFICAÇÃO AQUI: Adicionado " - ${item.responsavel}" ---
+                            title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
                             extendedProps: {
