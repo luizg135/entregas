@@ -712,16 +712,19 @@ function processAndUnifyEvents(apiData) {
 
                 const allKnownTecnicos = new Set();
                 const allKnownPedagogos = new Set();
+                
                 (apiData.cursos || []).forEach(curso => {
-                    if (curso.equipe.tecnico) allKnownTecnicos.add(curso.equipe.tecnico);
-                    if (curso.equipe.pedagogo) allKnownPedagogos.add(curso.equipe.pedagogo);
+                    if (curso.equipe && curso.equipe.tecnico) allKnownTecnicos.add(curso.equipe.tecnico);
+                    if (curso.equipe && curso.equipe.pedagogo) allKnownPedagogos.add(curso.equipe.pedagogo);
                     (curso.eventosAssociados || []).forEach(evento => {
                         if (evento.pedagogo) allKnownPedagogos.add(evento.pedagogo);
                     });
                 });
+                
                 (apiData.atividadesExtras?.tecnicos || []).forEach(item => {
                     if (item.responsavel) allKnownTecnicos.add(item.responsavel);
                 });
+                
                 (apiData.atividadesExtras?.pedagogos || []).forEach(item => {
                     if (item.responsavel) allKnownPedagogos.add(item.responsavel);
                 });
@@ -745,8 +748,11 @@ function processAndUnifyEvents(apiData) {
                 // Eventos dos cursos
                 (apiData.cursos || []).forEach(curso => {
                     (curso.eventosAssociados || []).forEach(evento => {
-                        // --- Correção: Adiciona o nome do responsável também nos eventos dos cursos ---
-                        let pessoaResponsavel = evento.pedagogo || curso.equipe.pedagogo || curso.equipe.tecnico;
+                        // Correção da duplicação: Adiciona o nome do responsável também nos cursos
+                        let tecnicoDoCurso = curso.equipe ? curso.equipe.tecnico : null;
+                        let pedagogoDoCurso = curso.equipe ? curso.equipe.pedagogo : null;
+                        
+                        let pessoaResponsavel = evento.pedagogo || pedagogoDoCurso || tecnicoDoCurso;
                         let tituloFinal = `${evento.tipo}: ${curso.nome}`;
                         
                         if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
@@ -758,11 +764,11 @@ function processAndUnifyEvents(apiData) {
                             start: parseDate(evento.inicio),
                             end: parseDate(evento.fim) || parseDate(evento.inicio),
                             extendedProps: {
-                                eventType: evento.tipo.toLowerCase(),
+                                eventType: evento.tipo ? evento.tipo.toLowerCase() : '',
                                 courseName: curso.nome,
                                 courseLevel: curso.nivel,
-                                tecnico: curso.equipe.tecnico,
-                                pedagogo: evento.pedagogo || curso.equipe.pedagogo
+                                tecnico: tecnicoDoCurso,
+                                pedagogo: evento.pedagogo || pedagogoDoCurso
                             }
                         });
                     });
@@ -770,9 +776,9 @@ function processAndUnifyEvents(apiData) {
             
                 // Eventos do calendário
                 (apiData.calendarioEventos || []).forEach(item => {
-                    let tecnico = item.propriedades.tecnico;
-                    let pedagogo = item.propriedades.pedagogo;
-                    const responsavel = item.propriedades.responsavel;
+                    let tecnico = item.propriedades ? item.propriedades.tecnico : null;
+                    let pedagogo = item.propriedades ? item.propriedades.pedagogo : null;
+                    const responsavel = item.propriedades ? item.propriedades.responsavel : null;
 
                     if (responsavel && !tecnico && !pedagogo) {
                         if (allKnownTecnicos.has(responsavel)) {
@@ -784,6 +790,7 @@ function processAndUnifyEvents(apiData) {
                     
                     let pessoaResponsavel = responsavel || tecnico || pedagogo;
                     let tituloFinal = item.titulo;
+                    
                     if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
                         tituloFinal = `${tituloFinal} - ${pessoaResponsavel}`;
                     }
@@ -793,9 +800,9 @@ function processAndUnifyEvents(apiData) {
                         start: parseDate(item.dataInicio),
                         end: parseDate(item.dataFim) || parseDate(item.dataInicio),
                         extendedProps: {
-                            eventType: item.tipo.toLowerCase(),
-                            courseName: item.propriedades.nomeCurso,
-                            courseLevel: item.propriedades.nivelCurso,
+                            eventType: item.tipo ? item.tipo.toLowerCase() : '',
+                            courseName: item.propriedades ? item.propriedades.nomeCurso : null,
+                            courseLevel: item.propriedades ? item.propriedades.nivelCurso : null,
                             tecnico: tecnico,
                             pedagogo: pedagogo
                         }
@@ -810,19 +817,20 @@ function processAndUnifyEvents(apiData) {
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
                             extendedProps: {
-                                eventType: item.tipo.toLowerCase(),
+                                eventType: item.tipo ? item.tipo.toLowerCase() : '',
                                 tecnico: null,
                                 pedagogo: item.responsavel
                             }
                         });
                     });
+                    
                     (apiData.atividadesExtras.tecnicos || []).forEach(item => {
                         addEvent({
                             title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
                             extendedProps: {
-                                eventType: item.tipo.toLowerCase(),
+                                eventType: item.tipo ? item.tipo.toLowerCase() : '',
                                 tecnico: item.responsavel,
                                 pedagogo: null
                             }
