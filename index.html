@@ -452,9 +452,9 @@
                 </div>
             </div>
             <div id="calendar-modal-body">
-                <div id="full-calendar-wrapper" class="p-4 flex-grow">
-                    <div id="full-calendar-container" class="w-full h-full"></div>
-                </div>
+            <div id="full-calendar-wrapper" class="p-4 flex-grow flex flex-col min-h-0">
+                <div id="full-calendar-container" class="w-full flex-grow min-h-0"></div>
+            </div>
                 <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
                 </div>
             </div>
@@ -1529,6 +1529,7 @@ function processAndUnifyEvents(apiData) {
                 }
 
                 fullCalendarInstance = new FullCalendar.Calendar(calendarEl, {
+                    height: '100%',
                     initialView: 'dayGridMonth',
                     headerToolbar: {
                         left: 'prev,next today',
