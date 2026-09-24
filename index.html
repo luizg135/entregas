@@ -452,9 +452,13 @@
                 </div>
             </div>
             <div id="calendar-modal-body">
-            <div id="full-calendar-wrapper" class="p-4 flex-grow flex flex-col min-h-0">
-                <div id="full-calendar-container" class="w-full flex-grow min-h-0"></div>
-            </div>
+                <!-- Removido o p-4 e adicionado relative e min-h-0 -->
+                <div id="full-calendar-wrapper" class="relative flex-grow min-h-0">
+                    <!-- O absolute inset-4 cria o espaçamento exato e bloqueia a altura -->
+                    <div class="absolute inset-4">
+                        <div id="full-calendar-container" class="w-full h-full"></div>
+                    </div>
+                </div>
                 <div id="calendar-filters-container" class="hidden p-4 border-l overflow-y-auto">
                 </div>
             </div>
