@@ -710,7 +710,6 @@ function processAndUnifyEvents(apiData) {
                 const allEvents = [];
                 if (!apiData) return allEvents;
 
-                // Create master lists of all known technicians and pedagogues
                 const allKnownTecnicos = new Set();
                 const allKnownPedagogos = new Set();
                 (apiData.cursos || []).forEach(curso => {
@@ -746,8 +745,16 @@ function processAndUnifyEvents(apiData) {
                 // Eventos dos cursos
                 (apiData.cursos || []).forEach(curso => {
                     (curso.eventosAssociados || []).forEach(evento => {
+                        // --- Correção: Adiciona o nome do responsável também nos eventos dos cursos ---
+                        let pessoaResponsavel = evento.pedagogo || curso.equipe.pedagogo || curso.equipe.tecnico;
+                        let tituloFinal = `${evento.tipo}: ${curso.nome}`;
+                        
+                        if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
+                            tituloFinal = `${tituloFinal} - ${pessoaResponsavel}`;
+                        }
+
                         addEvent({
-                            title: `${evento.tipo}: ${curso.nome}`,
+                            title: tituloFinal,
                             start: parseDate(evento.inicio),
                             end: parseDate(evento.fim) || parseDate(evento.inicio),
                             extendedProps: {
@@ -775,7 +782,6 @@ function processAndUnifyEvents(apiData) {
                         }
                     }
                     
-                    // --- MODIFICAÇÃO AQUI: Anexa o nome do responsável se existir ---
                     let pessoaResponsavel = responsavel || tecnico || pedagogo;
                     let tituloFinal = item.titulo;
                     if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
@@ -800,7 +806,6 @@ function processAndUnifyEvents(apiData) {
                 if (apiData.atividadesExtras) {
                     (apiData.atividadesExtras.pedagogos || []).forEach(item => {
                         addEvent({
-                            // --- MODIFICAÇÃO AQUI: Adicionado " - ${item.responsavel}" ---
                             title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
@@ -813,7 +818,6 @@ function processAndUnifyEvents(apiData) {
                     });
                     (apiData.atividadesExtras.tecnicos || []).forEach(item => {
                         addEvent({
-                            // --- MODIFICAÇÃO AQUI: Adicionado " - ${item.responsavel}" ---
                             title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
                             start: parseDate(item.inicio),
                             end: parseDate(item.fim) || parseDate(item.inicio),
@@ -825,6 +829,21 @@ function processAndUnifyEvents(apiData) {
                         });
                     });
                 }
+            
+                // Desduplicação pela chave combinada (Título + Data)
+                const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
+            
+                uniqueEvents.forEach(event => {
+                    event.color = getEventColorByPedagogo(event.extendedProps.pedagogo, event.extendedProps.eventType);
+                    if (event.end) {
+                        const endDate = new Date(event.end);
+                        endDate.setUTCDate(endDate.getUTCDate() + 1);
+                        event.end = endDate;
+                    }
+                });
+            
+                return uniqueEvents;
+            }
             
                 const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
             
