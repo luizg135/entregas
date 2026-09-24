@@ -696,9 +696,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 return stats;
             }
 
-            function processAndUnifyEvents(apiData) {
-                const allEvents = [];
-                if (!apiData) return allEvents;
+function processAndUnifyEvents(apiData) {
+                const eventMap = new Map();
+                if (!apiData) return [];
 
                 const allKnownTecnicos = new Set();
                 const allKnownPedagogos = new Set();
@@ -720,47 +720,70 @@ document.addEventListener('DOMContentLoaded', function() {
             
                 const toDateKey = (dateObj) => dateObj ? dateObj.toISOString().split('T')[0] : '';
             
-                const addEvent = (details) => {
-                    if (details.title && details.start) {
-                        const newEvent = {
-                            title: details.title,
-                            start: details.start,
-                            end: details.end,
+                // Função centralizada para adicionar ou MESCLAR eventos duplicados
+                const addOrMergeEvent = (coreTitle, start, end, tecnico, pedagogo, eventType, courseName, courseLevel) => {
+                    if (!coreTitle || !start) return;
+
+                    const key = `${coreTitle.trim()}-${toDateKey(start)}`;
+                    
+                    if (eventMap.has(key)) {
+                        // Se o evento já existe na lista, nós mesclamos os responsáveis
+                        const existing = eventMap.get(key);
+                        if (!existing.extendedProps.tecnico && tecnico) existing.extendedProps.tecnico = tecnico;
+                        if (!existing.extendedProps.pedagogo && pedagogo) existing.extendedProps.pedagogo = pedagogo;
+                        
+                        // Atualiza o título para garantir que o Técnico seja a prioridade de exibição
+                        let responsavelDisplay = existing.extendedProps.tecnico || existing.extendedProps.pedagogo;
+                        if (responsavelDisplay && !existing.title.includes(responsavelDisplay)) {
+                            existing.title = `${coreTitle} - ${responsavelDisplay}`;
+                        }
+                    } else {
+                        // Se for um evento novo, cria ele definindo o título com o Técnico (se houver) ou Pedagogo
+                        let responsavelDisplay = tecnico || pedagogo;
+                        let displayTitle = coreTitle;
+                        if (responsavelDisplay && !displayTitle.includes(responsavelDisplay)) {
+                            displayTitle = `${displayTitle} - ${responsavelDisplay}`;
+                        }
+
+                        eventMap.set(key, {
+                            title: displayTitle,
+                            start: start,
+                            end: end,
                             allDay: true,
-                            extendedProps: details.extendedProps
-                        };
-                        const key = `${newEvent.title}-${toDateKey(newEvent.start)}`;
-                        allEvents.push({ key, event: newEvent });
+                            extendedProps: {
+                                eventType: eventType || '',
+                                courseName: courseName || null,
+                                courseLevel: courseLevel || null,
+                                tecnico: tecnico || null,
+                                pedagogo: pedagogo || null
+                            }
+                        });
                     }
                 };
             
+                // Eventos dos cursos
                 (apiData.cursos || []).forEach(curso => {
                     (curso.eventosAssociados || []).forEach(evento => {
                         let tecnicoDoCurso = curso.equipe ? curso.equipe.tecnico : null;
                         let pedagogoDoCurso = curso.equipe ? curso.equipe.pedagogo : null;
                         
-                        let pessoaResponsavel = evento.pedagogo || pedagogoDoCurso || tecnicoDoCurso;
-                        let tituloFinal = `${evento.tipo}: ${curso.nome}`;
+                        let coreTitle = `${evento.tipo}: ${curso.nome}`;
+                        let evPedagogo = evento.pedagogo || pedagogoDoCurso;
                         
-                        if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
-                            tituloFinal = `${tituloFinal} - ${pessoaResponsavel}`;
-                        }
-
-                        addEvent({
-                            title: tituloFinal,
-                            start: parseDate(evento.inicio),
-                            end: parseDate(evento.fim) || parseDate(evento.inicio),
-                            extendedProps: {
-                                eventType: evento.tipo ? evento.tipo.toLowerCase() : '',
-                                courseName: curso.nome,
-                                courseLevel: curso.nivel,
-                                tecnico: tecnicoDoCurso,
-                                pedagogo: evento.pedagogo || pedagogoDoCurso
-                            }
-                        });
+                        addOrMergeEvent(
+                            coreTitle,
+                            parseDate(evento.inicio),
+                            parseDate(evento.fim) || parseDate(evento.inicio),
+                            tecnicoDoCurso,
+                            evPedagogo,
+                            evento.tipo ? evento.tipo.toLowerCase() : '',
+                            curso.nome,
+                            curso.nivel
+                        );
                     });
                 });
             
+                // Eventos do calendário
                 (apiData.calendarioEventos || []).forEach(item => {
                     let tecnico = item.propriedades ? item.propriedades.tecnico : null;
                     let pedagogo = item.propriedades ? item.propriedades.pedagogo : null;
@@ -771,61 +794,66 @@ document.addEventListener('DOMContentLoaded', function() {
                             tecnico = responsavel;
                         } else if (allKnownPedagogos.has(responsavel)) {
                             pedagogo = responsavel;
+                        } else {
+                            tecnico = responsavel; // Default fallback
                         }
                     }
                     
-                    let pessoaResponsavel = responsavel || tecnico || pedagogo;
-                    let tituloFinal = item.titulo;
-                    
-                    if (pessoaResponsavel && !tituloFinal.includes(pessoaResponsavel)) {
-                        tituloFinal = `${tituloFinal} - ${pessoaResponsavel}`;
+                    // Remove o nome do responsável se ele já vier grudado no título da API, para manter o coreTitle limpo para a fusão
+                    let coreTitle = item.titulo;
+                    let pResponsavel = responsavel || tecnico || pedagogo;
+                    if (pResponsavel && coreTitle.endsWith(` - ${pResponsavel}`)) {
+                        coreTitle = coreTitle.replace(` - ${pResponsavel}`, '');
                     }
 
-                    addEvent({
-                        title: tituloFinal,
-                        start: parseDate(item.dataInicio),
-                        end: parseDate(item.dataFim) || parseDate(item.dataInicio),
-                        extendedProps: {
-                            eventType: item.tipo ? item.tipo.toLowerCase() : '',
-                            courseName: item.propriedades ? item.propriedades.nomeCurso : null,
-                            courseLevel: item.propriedades ? item.propriedades.nivelCurso : null,
-                            tecnico: tecnico,
-                            pedagogo: pedagogo
-                        }
-                    });
+                    addOrMergeEvent(
+                        coreTitle,
+                        parseDate(item.dataInicio),
+                        parseDate(item.dataFim) || parseDate(item.dataInicio),
+                        tecnico,
+                        pedagogo,
+                        item.tipo ? item.tipo.toLowerCase() : '',
+                        item.propriedades ? item.propriedades.nomeCurso : null,
+                        item.propriedades ? item.propriedades.nivelCurso : null
+                    );
                 });
             
+                // Atividades extras
                 if (apiData.atividadesExtras) {
                     (apiData.atividadesExtras.pedagogos || []).forEach(item => {
-                        addEvent({
-                            title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
-                            start: parseDate(item.inicio),
-                            end: parseDate(item.fim) || parseDate(item.inicio),
-                            extendedProps: {
-                                eventType: item.tipo ? item.tipo.toLowerCase() : '',
-                                tecnico: null,
-                                pedagogo: item.responsavel
-                            }
-                        });
+                        let coreTitle = `${item.tipo}: ${item.tema}`;
+                        addOrMergeEvent(
+                            coreTitle,
+                            parseDate(item.inicio),
+                            parseDate(item.fim) || parseDate(item.inicio),
+                            null, // tecnico
+                            item.responsavel, // pedagogo
+                            item.tipo ? item.tipo.toLowerCase() : '',
+                            null, null
+                        );
                     });
+                    
                     (apiData.atividadesExtras.tecnicos || []).forEach(item => {
-                        addEvent({
-                            title: `${item.tipo}: ${item.tema} - ${item.responsavel}`,
-                            start: parseDate(item.inicio),
-                            end: parseDate(item.fim) || parseDate(item.inicio),
-                            extendedProps: {
-                                eventType: item.tipo ? item.tipo.toLowerCase() : '',
-                                tecnico: item.responsavel,
-                                pedagogo: null
-                            }
-                        });
+                        let coreTitle = `${item.tipo}: ${item.tema}`;
+                        addOrMergeEvent(
+                            coreTitle,
+                            parseDate(item.inicio),
+                            parseDate(item.fim) || parseDate(item.inicio),
+                            item.responsavel, // tecnico
+                            null, // pedagogo
+                            item.tipo ? item.tipo.toLowerCase() : '',
+                            null, null
+                        );
                     });
                 }
             
-                const uniqueEvents = Array.from(new Map(allEvents.map(e => [e.key, e.event])).values());
+                // Pega os eventos únicos já mesclados e processados
+                const uniqueEvents = Array.from(eventMap.values());
             
                 uniqueEvents.forEach(event => {
+                    // Define a cor baseada APENAS no pedagogo associado ao evento mesclado
                     event.color = getEventColorByPedagogo(event.extendedProps.pedagogo, event.extendedProps.eventType);
+                    
                     if (event.end) {
                         const endDate = new Date(event.end);
                         endDate.setUTCDate(endDate.getUTCDate() + 1);
