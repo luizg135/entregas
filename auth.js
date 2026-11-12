@@ -51,8 +51,6 @@
     wrap.innerHTML = `
       <div class="ddo-card">
         <img class="ddo-logo" src="Sistema-FAEP-SENAR-PR.png" alt="Sistema FAEP - SENAR-PR">
-        <h1>Educação | Entregas</h1>
-        <p class="ddo-sub" id="ddo-auth-sub">Acesso exclusivo a usuários autorizados</p>
         <form id="ddo-login-form">
           <label for="ddo-email">E-mail</label>
           <input type="email" id="ddo-email" autocomplete="username" required placeholder="Seu e-mail">
