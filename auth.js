@@ -69,7 +69,7 @@
           <button class="ddo-primary" type="submit">Salvar senha</button>
         </form>
         <p id="ddo-auth-message" role="status" aria-live="polite"></p>
-        <div class="ddo-foot">Acesso restrito • Sistema FAEP / SENAR-PR</div>
+        <div class="ddo-foot">Acesso restrito</div>
       </div>`;
     document.body.prepend(wrap);
     $('dashboard-container').style.display = 'none';
