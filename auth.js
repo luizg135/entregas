@@ -297,7 +297,7 @@
               checked
             >
             <span>
-              Manter conectado neste dispositivo
+              Manter conectado
             </span>
           </label>
 
